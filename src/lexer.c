@@ -5,6 +5,36 @@
 
 #include "lexer.h"
 
+static SymbolToken KEYWORDS[] = {
+    {"int", TOKEN_INT},
+    {"return", TOKEN_RETURN},
+    {"char", TOKEN_CHAR},
+    {"float", TOKEN_FLOAT},
+    {"double", TOKEN_DOUBLE},
+    {"struct", TOKEN_STRUCT},
+    {"union", TOKEN_UNION},
+    {"long", TOKEN_LONG},
+    {"short", TOKEN_SHORT},
+    {"unsigned", TOKEN_UNSIGNED},
+    {"auto", TOKEN_AUTO},
+    {"register", TOKEN_REGISTER},
+    {"typedef", TOKEN_TYPEDEF},
+    {"static", TOKEN_STATIC},
+    {"goto", TOKEN_GOTO},
+    {"sizeof", TOKEN_SIZEOF},
+    {"break", TOKEN_BREAK},
+    {"continue", TOKEN_CONTINUE},
+    {"if", TOKEN_IF},
+    {"else", TOKEN_ELSE},
+    {"for", TOKEN_FOR},
+    {"do", TOKEN_DO},
+    {"while", TOKEN_WHILE},
+    {"switch", TOKEN_SWITCH},
+    {"case", TOKEN_CASE},
+    {"default", TOKEN_DEFAULT},
+    {"void", TOKEN_VOID},
+};
+
 static SymbolToken SYMBOLS[] = {
     {";", TOKEN_SEMICOLON},
     {"(", TOKEN_LEFT_PAREN},
@@ -13,16 +43,12 @@ static SymbolToken SYMBOLS[] = {
     {"}", TOKEN_RIGHT_BRACE},
     {"=", TOKEN_SINGLE_EQUALS},
     {",", TOKEN_COMMA},
+    {"*", TOKEN_STAR},
+    {"#", TOKEN_HASHTAG}
 };
 
-static SymbolToken KEYWORDS[] = {
-    {"int", TOKEN_INT},
-    {"return", TOKEN_RETURN},
-    {"char", TOKEN_CHAR},
-};
-
-static const int SYMBOL_COUNT = sizeof(SYMBOLS) / sizeof(SymbolToken);
 static const int KEYWORDS_COUNT = sizeof(KEYWORDS) / sizeof(SymbolToken);
+static const int SYMBOL_COUNT = sizeof(SYMBOLS) / sizeof(SymbolToken);
 
 Lexer *init_lexer(char *source) {
     Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
@@ -40,13 +66,23 @@ char *lexer_err_to_str(LexerError err) {
     switch (err) {
         case EMPTY_CHAR_LITERAL: return "A char literal cannot be empty.\n";
         case INVALID_ESCAPE_SEQUENCE: return "Invalid escape character.\n";
-        case NO_LEXER_ERROR: return "No lexer error.";
+        case UNTERMINATED_STRING_LITERAL: return "Unterminated string literal.\n";
+        case TOO_MANY_CHARS_IN_CHAR_LITERAL: return "Too many characters in char literal.\n";
+        case INVALID_NUMERIC_DECLARATION: return "Invalid numeric declaration.\n";
+        case NO_LEXER_ERROR: return "No lexer error.\n";
         default: return "Unknown Error - uhhhh, oops.\n";
     }
 }
 
 static inline char current_char(Lexer *lexer) {
+    if (lexer->source == NULL) return '\0';
+
+    if (lexer->current >= strlen(lexer->source)) return '\0';
     return lexer->source[lexer->current];
+}
+
+static inline int match(char c, Lexer* lexer) {
+    return current_char(lexer) == c;
 }
 
 static inline void advance(Lexer *lexer) {
@@ -73,10 +109,20 @@ static Token *parse_symbol(Lexer *lexer) {
 }
 
 static inline int is_valid_esc(char c) {
-    return c == 't' || c == 'n';
+    return c == 'a' 
+        || c == 'b'
+        || c == 'f'
+        || c == 'n' 
+        || c == 't'
+        || c == 'v'
+        || c == '\\'
+        || c == '\''
+        || c == '"'
+        || c == '?'
+        || c == '0';
 }
 
-static inline void lexer_err(Lexer *lexer, LexerError error) {
+static inline void lexer_err(LexerError error, Lexer *lexer) {
     lexer->err = error;
 }
 
@@ -86,7 +132,7 @@ static Token* parse_char(Lexer *lexer) {
     char *str;
     char esc = current_char(lexer);
     if (esc == '\'') {
-        lexer_err(lexer, EMPTY_CHAR_LITERAL);
+        lexer_err(EMPTY_CHAR_LITERAL, lexer);
         return NULL;
     }
 
@@ -95,12 +141,11 @@ static Token* parse_char(Lexer *lexer) {
 
         char c = current_char(lexer);
         if (!is_valid_esc(c)) {
-            lexer_err(lexer, INVALID_ESCAPE_SEQUENCE);
+            lexer_err(INVALID_ESCAPE_SEQUENCE, lexer);
             return NULL;
         }
 
         str = (char *)malloc(3);
-
         str[0] = '\\';
         str[1] = c;
         str[2] = '\0';
@@ -112,6 +157,10 @@ static Token* parse_char(Lexer *lexer) {
     }
 
     advance(lexer);
+    if (current_char(lexer) != '\'') {
+        lexer_err(TOO_MANY_CHARS_IN_CHAR_LITERAL, lexer);
+        return NULL;
+    }
 
     Token *token = init_token(str, TOKEN_CHAR_LITERAL);
     free(str);
@@ -123,30 +172,88 @@ static Token* parse_string(Lexer *lexer) {
     int start = lexer->current;
 
     advance(lexer);
-    while (1) {
+    while (current_char(lexer)) {
         char c = current_char(lexer);
-
-        if (c == '\"') {
+        if (c == '\\') {
+            advance(lexer);
+            if (!is_valid_esc(current_char(lexer))) {
+                lexer_err(INVALID_ESCAPE_SEQUENCE, lexer);
+                return NULL;
+            }
+        }
+        else if (c == '\"') {
             break;
         }
+
+        advance(lexer);
+    }
+
+    if (current_char(lexer) == '\0') {
+        lexer_err(UNTERMINATED_STRING_LITERAL, lexer);
+        return NULL;
     }
     
-    int len = lexer->current - start;
+    int len = lexer->current- start;
     char *lexeme = (char *)malloc(len + 1);
-    strncpy(lexeme, lexer->source + start, len);
-    lexeme[len] = '\0';
+    strncpy(lexeme, lexer->source + start + 1, len);
+    lexeme[len - 1] = '\0';
 
-    recede(lexer);
-
-    Token *token = init_token(lexeme, TOKEN_STRING);
+    Token *token = init_token(lexeme, TOKEN_STRING_LITERAL);
     free(lexeme);
 
     return token;
 }
 
+static inline int is_valid_binary_char(char c) {
+    return c == '1' || c == '0';
+}
+
 static Token* parse_numeric(Lexer *lexer) {
     int start = lexer->current;
-    while (isdigit(current_char(lexer))) {
+
+    int is_decimal = 0;
+    TokenType type = TOKEN_INTEGER_LITERAL;
+
+    while (isdigit(current_char(lexer)) || (match('.', lexer))) {
+        if (match('0', lexer)) {
+            advance(lexer);
+
+            if (match('x', lexer) || match('X', lexer)) {
+                type = TOKEN_HEX_LITERAL;
+                advance(lexer);
+
+                while (isxdigit(current_char(lexer))) {
+                    advance(lexer);
+                }
+            }
+            else if (match('b', lexer) || match('B', lexer)) {
+                type = TOKEN_BINARY_LITERAL;
+                advance(lexer);
+
+                while (match('1', lexer) || match('0', lexer)) {
+                    advance(lexer);
+                }
+            }
+            else if (isdigit(current_char(lexer))) {
+                while (current_char(lexer) >= '0' && current_char(lexer) <= '7') {
+                    advance(lexer);
+                }
+                type = TOKEN_OCTAL_LITERAL;
+            }
+            else {
+                recede(lexer);
+            }
+        }
+
+        if ((match('.', lexer)) && is_decimal) {
+            lexer_err(INVALID_NUMERIC_DECLARATION, lexer);
+            return NULL;
+        }
+        else if ((match('.', lexer))) {
+            is_decimal = 1;
+            type = TOKEN_FLOAT_LITERAL;
+        }
+
         advance(lexer);
     }
 
@@ -157,7 +264,7 @@ static Token* parse_numeric(Lexer *lexer) {
 
     recede(lexer);
 
-    Token *token = init_token(lexeme, TOKEN_INTEGER_LITERAL);
+    Token *token = init_token(lexeme, type);
     free(lexeme);
 
     return token;
@@ -165,7 +272,7 @@ static Token* parse_numeric(Lexer *lexer) {
 
 static Token* parse_identifier(Lexer *lexer) {
     int start = lexer->current;
-    while (isalpha(current_char(lexer))) {
+    while (isalnum(current_char(lexer)) || current_char(lexer) == '_') {
         advance(lexer);
     }
 
@@ -194,7 +301,7 @@ static Token* parse_identifier(Lexer *lexer) {
 static Token *parse_token(Lexer *lexer) {
     char c = current_char(lexer);
 
-    if (isalpha(c)) {
+    if (isalpha(c) || c == '_') {
         return parse_identifier(lexer);
     }
     else if (isdigit(c)) {
@@ -211,30 +318,71 @@ static Token *parse_token(Lexer *lexer) {
     }
 }
 
-void tokenize(Lexer *lexer) {
-    while (lexer->source[lexer->current]) {
-        Token *token = parse_token(lexer);
-        advance(lexer);
-
-        if (!token) continue;
-
-        if (lexer->token_count >= lexer->token_capacity) {
-            lexer->token_capacity *= 2;
-            lexer->tokens = realloc(lexer->tokens, sizeof(Token) * lexer->token_capacity);
+void skip_comments(Lexer *lexer) {
+    while (1) {
+        if (current_char(lexer) == '/' && lexer->source[lexer->current + 1] == '/') {
+            advance(lexer);
+            advance(lexer);
+            while (current_char(lexer) != '\n' && current_char(lexer) != '\0') {
+                advance(lexer);
+            }
+        } else if (current_char(lexer) == '/' && lexer->source[lexer->current + 1] == '*') {
+            advance(lexer);
+            advance(lexer);
+            while (current_char(lexer) && !(current_char(lexer) == '*' && lexer->source[lexer->current + 1] == '/')) {
+                advance(lexer);
+            }
+            if (current_char(lexer) == '*' && lexer->source[lexer->current + 1] == '/') {
+                advance(lexer);
+                advance(lexer);
+            }
+        } else {
+            break;
         }
 
-        lexer->tokens[lexer->token_count++] = *token;
-        free(token);
+        while (isspace(current_char(lexer))) {
+            advance(lexer);
+        }
     }
+}
+
+void print_lexer(Lexer *lexer) {
+    for (int i = 0; i < lexer->token_count; i++) {
+        printf("%d '%s': %s\n", i, lexer->tokens[i].lexeme, token_type_to_str(lexer->tokens[i].type));
+    }
+}
+
+void add_token(Token *token, Lexer *lexer) {
+    if (lexer->token_count >= lexer->token_capacity) {
+        lexer->token_capacity *= 2;
+        lexer->tokens = realloc(lexer->tokens, sizeof(Token) * lexer->token_capacity);
+    }
+    lexer->tokens[lexer->token_count++] = *token;
+    free(token);
+}
+
+void tokenize(Lexer *lexer) {
+    while (lexer->source[lexer->current]) {
+        while (isspace(current_char(lexer))) {
+            advance(lexer);
+        }
+        skip_comments(lexer);
+
+        Token *token = parse_token(lexer);
+        if (!token) break;
+        add_token(token, lexer);
+
+        advance(lexer);
+    }
+
+    add_token(init_token("", TOKEN_EOF), lexer);
 
     if (lexer->err != NO_LEXER_ERROR) {
         printf("%s",lexer_err_to_str(lexer->err));
         return;
     }
 
-    for (int i = 0; i < lexer->token_count; i++) {
-        printf("%d '%s': %s\n", i, lexer->tokens[i].lexeme, token_type_to_str(lexer->tokens[i].type));
-    }
+    print_lexer(lexer);
 }
 
 void free_lexer(Lexer *lexer) {

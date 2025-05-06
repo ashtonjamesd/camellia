@@ -12,11 +12,13 @@ void test_declare_int() {
     tokenize(lexer);
     Token *tokens = lexer->tokens;
 
-    TEST_ASSERT_TRUE(lexer->token_count == 3);
+    TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
+    TEST_ASSERT_TRUE(lexer->token_count == 4);
 
     ASSERT_TOKEN(0, TOKEN_INT, "int");
     ASSERT_TOKEN(1, TOKEN_IDENTIFIER, "x");
     ASSERT_TOKEN(2, TOKEN_SEMICOLON, ";");
+    ASSERT_TOKEN(3, TOKEN_EOF, "");
 
     free(lexer);
 }
@@ -26,13 +28,15 @@ void test_declare_int_with_initialization() {
     tokenize(lexer);
     Token *tokens = lexer->tokens;
 
-    TEST_ASSERT_TRUE(lexer->token_count == 5);
+    TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
+    TEST_ASSERT_TRUE(lexer->token_count == 6);
 
     ASSERT_TOKEN(0, TOKEN_INT, "int");
     ASSERT_TOKEN(1, TOKEN_IDENTIFIER, "x");
     ASSERT_TOKEN(2, TOKEN_SINGLE_EQUALS, "=");
     ASSERT_TOKEN(3, TOKEN_INTEGER_LITERAL, "10");
     ASSERT_TOKEN(4, TOKEN_SEMICOLON, ";");
+    ASSERT_TOKEN(5, TOKEN_EOF, "");
 
     free(lexer);
 }
@@ -42,7 +46,8 @@ void test_declare_multiple_int() {
     tokenize(lexer);
     Token *tokens = lexer->tokens;
 
-    TEST_ASSERT_TRUE(lexer->token_count == 7);
+    TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
+    TEST_ASSERT_TRUE(lexer->token_count == 8);
 
     ASSERT_TOKEN(0, TOKEN_INT, "int");
     ASSERT_TOKEN(1, TOKEN_IDENTIFIER, "x");
@@ -51,6 +56,7 @@ void test_declare_multiple_int() {
     ASSERT_TOKEN(4, TOKEN_COMMA, ",");
     ASSERT_TOKEN(5, TOKEN_IDENTIFIER, "z");
     ASSERT_TOKEN(6, TOKEN_SEMICOLON, ";");
+    ASSERT_TOKEN(7, TOKEN_EOF, "");
 
     free(lexer);
 }

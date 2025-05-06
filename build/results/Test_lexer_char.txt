@@ -1,31 +1,53 @@
 0 'char': CHAR
 1 'x': IDENTIFIER
 2 ';': SEMICOLON
-test/Test_lexer_char.c:73:test_declare_char:PASS
+3 '': EOF
+test/Test_lexer_char.c:152:test_declare_char:PASS
 0 'char': CHAR
 1 'x': IDENTIFIER
 2 '=': SINGLE EQUALS
 3 'a': CHAR LITERAL
 4 ';': SEMICOLON
-test/Test_lexer_char.c:74:test_declare_char_with_initialization:PASS
+5 '': EOF
+test/Test_lexer_char.c:153:test_declare_char_with_initialization:PASS
 0 'char': CHAR
 1 'x': IDENTIFIER
 2 '=': SINGLE EQUALS
 3 '	': CHAR LITERAL
 4 ';': SEMICOLON
-test/Test_lexer_char.c:75:test_declare_escape_char:PASS
+5 '': EOF
+test/Test_lexer_char.c:154:test_declare_escape_char:PASS
+Invalid escape character.
+test/Test_lexer_char.c:155:test_declare_invalid_escape_char:PASS
+Too many characters in char literal.
+test/Test_lexer_char.c:156:test_declare_too_many_chars_in_char_literal:PASS
 0 'char': CHAR
-1 'x': IDENTIFIER
-2 '=': SINGLE EQUALS
-3 '': CHAR LITERAL
-4 ';': SEMICOLON
+1 '*': STAR
+2 'x': IDENTIFIER
+3 '=': SINGLE EQUALS
+4 '': STRING
+5 ';': SEMICOLON
+6 '': EOF
+test/Test_lexer_char.c:157:test_declare_empty_char_pointer:PASS
 0 'char': CHAR
-1 'x': IDENTIFIER
-2 '=': SINGLE EQUALS
-3 '': CHAR LITERAL
-4 ';': SEMICOLON
-test/Test_lexer_char.c:76:test_declare_invalid_escape_char:PASS
+1 '*': STAR
+2 'x': IDENTIFIER
+3 '=': SINGLE EQUALS
+4 'Hello, World!': STRING
+5 ';': SEMICOLON
+6 '': EOF
+test/Test_lexer_char.c:158:test_declare_char_pointer:PASS
+0 'char': CHAR
+1 '*': STAR
+2 'x': IDENTIFIER
+3 '=': SINGLE EQUALS
+4 ' \t \t \a\a\a\a ': STRING
+5 ';': SEMICOLON
+6 '': EOF
+test/Test_lexer_char.c:159:test_declare_char_pointer_with_escape_chars:PASS
+Invalid escape character.
+test/Test_lexer_char.c:160:test_declare_char_pointer_invalid_escape_char:PASS
 
 -----------------------
-4 Tests 0 Failures 0 Ignored 
+9 Tests 0 Failures 0 Ignored 
 OK
