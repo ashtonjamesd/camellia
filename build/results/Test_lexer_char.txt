@@ -1,0 +1,31 @@
+0 'char': CHAR
+1 'x': IDENTIFIER
+2 ';': SEMICOLON
+test/Test_lexer_char.c:73:test_declare_char:PASS
+0 'char': CHAR
+1 'x': IDENTIFIER
+2 '=': SINGLE EQUALS
+3 'a': CHAR LITERAL
+4 ';': SEMICOLON
+test/Test_lexer_char.c:74:test_declare_char_with_initialization:PASS
+0 'char': CHAR
+1 'x': IDENTIFIER
+2 '=': SINGLE EQUALS
+3 '	': CHAR LITERAL
+4 ';': SEMICOLON
+test/Test_lexer_char.c:75:test_declare_escape_char:PASS
+0 'char': CHAR
+1 'x': IDENTIFIER
+2 '=': SINGLE EQUALS
+3 '': CHAR LITERAL
+4 ';': SEMICOLON
+0 'char': CHAR
+1 'x': IDENTIFIER
+2 '=': SINGLE EQUALS
+3 '': CHAR LITERAL
+4 ';': SEMICOLON
+test/Test_lexer_char.c:76:test_declare_invalid_escape_char:PASS
+
+-----------------------
+4 Tests 0 Failures 0 Ignored 
+OK

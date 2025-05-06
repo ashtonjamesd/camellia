@@ -1,0 +1,22 @@
+0 'int': INT
+1 'x': IDENTIFIER
+2 ';': SEMICOLON
+test/Test_lexer_int.c:62:test_declare_int:PASS
+0 'int': INT
+1 'x': IDENTIFIER
+2 '=': SINGLE EQUALS
+3 '10': TOKEN INTEGER LITERAL
+4 ';': SEMICOLON
+test/Test_lexer_int.c:63:test_declare_int_with_initialization:PASS
+0 'int': INT
+1 'x': IDENTIFIER
+2 ',': COMMA
+3 'y': IDENTIFIER
+4 ',': COMMA
+5 'z': IDENTIFIER
+6 ';': SEMICOLON
+test/Test_lexer_int.c:64:test_declare_multiple_int:PASS
+
+-----------------------
+3 Tests 0 Failures 0 Ignored 
+OK
