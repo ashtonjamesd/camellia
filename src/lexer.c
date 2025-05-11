@@ -50,7 +50,7 @@ static SymbolToken SYMBOLS[] = {
 static const int KEYWORDS_COUNT = sizeof(KEYWORDS) / sizeof(SymbolToken);
 static const int SYMBOL_COUNT = sizeof(SYMBOLS) / sizeof(SymbolToken);
 
-Lexer *init_lexer(char *source) {
+Lexer *init_lexer(char *source, int debug) {
     Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
     lexer->source = strdup(source);
     lexer->current = 0;
@@ -58,11 +58,12 @@ Lexer *init_lexer(char *source) {
     lexer->token_count = 0;
     lexer->tokens = (Token *)malloc(sizeof(Token));
     lexer->err = NO_LEXER_ERROR;
+    lexer->debug = debug;
 
     return lexer;
 }
 
-char *lexer_err_to_str(LexerError err) {
+char *lexer_err_to_str(LexErr err) {
     switch (err) {
         case EMPTY_CHAR_LITERAL: return "A char literal cannot be empty.\n";
         case INVALID_ESCAPE_SEQUENCE: return "Invalid escape character.\n";
@@ -122,7 +123,7 @@ static inline int is_valid_esc(char c) {
         || c == '0';
 }
 
-static inline void lexer_err(LexerError error, Lexer *lexer) {
+static inline void lexer_err(LexErr error, Lexer *lexer) {
     lexer->err = error;
 }
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "lexer.h"
+#include "ast.h"
 
 int main() {
   FILE *fptr = fopen("example/example.c", "r");
@@ -18,13 +19,25 @@ int main() {
   fread(buff, 1, sz, fptr);
   buff[sz] = '\0';
 
-  Lexer *lexer = init_lexer(buff);
+  int lexer_debug = 1;
+  Lexer *lexer = init_lexer(buff, lexer_debug);
+  if (lexer->err != NO_LEXER_ERROR) return 1;
 
   fclose(fptr);
   free(buff);
 
   tokenize(lexer);
+
+  int parser_debug = 1;
+  Parser *parser = init_parser(lexer->tokens, parser_debug);
+  parse_ast(parser);
+
+
   free_lexer(lexer);
+
+  // compile
+
+  free_parser(parser);
 
   return 0;
 }

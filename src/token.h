@@ -54,13 +54,13 @@ typedef enum {
 
 
 typedef struct {
-    char *lexeme;
+    char     *lexeme;
     TokenType type;
 } Token;
 
 typedef struct {
     const char *symbol;
-    TokenType type;
+    TokenType   type;
 } SymbolToken;
 
 extern Token *init_token(const char *lexeme, TokenType type);

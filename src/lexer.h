@@ -10,23 +10,23 @@ typedef enum {
     TOO_MANY_CHARS_IN_CHAR_LITERAL,
     INVALID_NUMERIC_DECLARATION,
     NO_LEXER_ERROR
-} LexerError;
+} LexErr;
 
 typedef struct {
-    char *source;
+    char  *source;
     Token *tokens;
-    int current;
-    int token_capacity;
-    int token_count;
+    int    current;
+    int    token_capacity;
+    int    token_count;
 
     // whether to print debug information, used in development
-    int debug;
+    int    debug;
 
     // the error that occurred, null if none took place
-    LexerError err;
+    LexErr err;
 } Lexer;
 
-extern Lexer *init_lexer(char *source);
+extern Lexer *init_lexer(char *source, int debug);
 extern void tokenize(Lexer *lexer);
 extern void free_lexer(Lexer *lexer);
 
