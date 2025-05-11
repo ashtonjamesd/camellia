@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra
 EXEC = build/main
 
-OBJS = src/main.c src/token.c src/lexer.c src/ast.c
+OBJS = src/main.c src/token.c src/lexer.c src/ast.c src/compile.c
 
 all:
 	$(CC) -o $(EXEC) $(OBJS)

@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "ast.h"
+#include "compile.h"
 
 int main() {
   FILE *fptr = fopen("example/example.c", "r");
@@ -32,12 +33,13 @@ int main() {
   Parser *parser = init_parser(lexer->tokens, parser_debug);
   parse_ast(parser);
 
-
   free_lexer(lexer);
 
-  // compile
+  Compiler *compiler = init_compiler(parser->tree, parser->node_count);
+  compile(compiler);
 
   free_parser(parser);
+  free_compiler(compiler);
 
   return 0;
 }

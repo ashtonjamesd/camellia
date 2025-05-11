@@ -52,6 +52,11 @@ static const int SYMBOL_COUNT = sizeof(SYMBOLS) / sizeof(SymbolToken);
 
 Lexer *init_lexer(char *source, int debug) {
     Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
+    if (!lexer) {
+        perror("Error allocating lexer");
+        return NULL;
+    }
+
     lexer->source = strdup(source);
     lexer->current = 0;
     lexer->token_capacity = 1;

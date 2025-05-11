@@ -7,11 +7,14 @@ typedef enum {
     AST_VARIABLE_DECLARATION,
     AST_LITERAL_INT,
     AST_LITERAL_CHAR,
+    AST_FUNCTION,
+    AST_RETURN,
 } AstType;
 
 typedef enum {
     TYPE_CHAR,
     TYPE_INT,
+    TYPE_VOID,
 } DataType;
 
 typedef struct AstNode AstNode;
@@ -32,6 +35,17 @@ typedef struct {
     AstNode *value;
 } AstVariableDeclaration;
 
+typedef struct {
+    AstNode *value;
+} AstReturn;
+
+typedef struct {
+    DataType returnType;
+    char *identifier;
+    AstNode **body;
+    int count;
+} AstFunctionDeclaration;
+
 struct AstNode {
     AstType type;
 
@@ -39,6 +53,8 @@ struct AstNode {
         AstLiteralInt          *lit_int;
         AstLiteralChar         *lit_char;
         AstVariableDeclaration *var_dec;
+        AstFunctionDeclaration *func;
+        AstReturn              *ret;
     } as;
 };
 
