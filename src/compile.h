@@ -5,8 +5,8 @@
 
 typedef struct {
     AstNode **tree;
-    int node_count;
-    FILE *file;
+    int       node_count;
+    FILE     *file;
 } Compiler;
 
 extern Compiler *init_compiler(AstNode **tree, int count);

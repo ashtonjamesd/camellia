@@ -57,6 +57,8 @@ char *token_type_to_str(TokenType type) {
         case TOKEN_HEX_LITERAL: return "HEX LITERAL";
         case TOKEN_BINARY_LITERAL: return "BINARY LITERAL";
         case TOKEN_OCTAL_LITERAL: return "OCTAL LITERAL";
+        case TOKEN_PLUS: return "PLUS";
+        case TOKEN_MINUS: return "MINUS";
         default: return "UNKNOWN";
     };
 }

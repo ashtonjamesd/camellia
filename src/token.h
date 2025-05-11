@@ -46,8 +46,12 @@ typedef enum {
     TOKEN_RIGHT_BRACE,
     TOKEN_SINGLE_EQUALS,
     TOKEN_COMMA,
-    TOKEN_STAR,
     TOKEN_HASHTAG,
+    TOKEN_PLUS,
+    TOKEN_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    TOKEN_MODULO,
 
     TOKEN_EOF,
 } TokenType;

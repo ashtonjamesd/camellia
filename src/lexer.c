@@ -43,8 +43,12 @@ static SymbolToken SYMBOLS[] = {
     {"}", TOKEN_RIGHT_BRACE},
     {"=", TOKEN_SINGLE_EQUALS},
     {",", TOKEN_COMMA},
+    {"#", TOKEN_HASHTAG},
+    {"+", TOKEN_PLUS},
+    {"-", TOKEN_MINUS},
     {"*", TOKEN_STAR},
-    {"#", TOKEN_HASHTAG}
+    {"/", TOKEN_SLASH},
+    {"%", TOKEN_MODULO},
 };
 
 static const int KEYWORDS_COUNT = sizeof(KEYWORDS) / sizeof(SymbolToken);
@@ -388,7 +392,7 @@ void tokenize(Lexer *lexer) {
         return;
     }
 
-    print_lexer(lexer);
+    if (lexer->debug) print_lexer(lexer);
 }
 
 void free_lexer(Lexer *lexer) {

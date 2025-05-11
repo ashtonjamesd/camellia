@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "ast.h"
 #include "compile.h"
+#include "analyze.h"
 
 int main() {
   FILE *fptr = fopen("example/example.c", "r");
@@ -20,7 +21,7 @@ int main() {
   fread(buff, 1, sz, fptr);
   buff[sz] = '\0';
 
-  int lexer_debug = 1;
+  int lexer_debug = 0;
   Lexer *lexer = init_lexer(buff, lexer_debug);
   if (lexer->err != NO_LEXER_ERROR) return 1;
 
@@ -35,11 +36,14 @@ int main() {
 
   free_lexer(lexer);
 
-  Compiler *compiler = init_compiler(parser->tree, parser->node_count);
-  compile(compiler);
+  // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
+  // analyze_ast(analyzer);
+
+  // Compiler *compiler = init_compiler(parser->tree, parser->node_count);
+  // compile(compiler);
 
   free_parser(parser);
-  free_compiler(compiler);
+  // free_compiler(compiler);
 
   return 0;
 }

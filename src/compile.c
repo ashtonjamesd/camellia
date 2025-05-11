@@ -35,11 +35,15 @@ void put(Compiler *c, const char *format, ...) {
 }
 
 static inline void sys_call(Compiler *c) {
-    put(c, "  int 80h");
+    put(c, "  int 0x80");
 }
 
 static inline void call(char *func, Compiler *c) {
     put(c, "  call %s", func);
+}
+
+void generate_variable_declaration(Compiler *c, AstVariableDeclaration *var_dec) {
+    
 }
 
 void generate_return(Compiler *c, AstReturn *ret) {
@@ -62,6 +66,9 @@ void generate_node(Compiler *c, AstNode *node) {
     }
     else if (node->type == AST_RETURN) {
         generate_return(c, node->as.ret);
+    }
+    else if (node->type == AST_VARIABLE_DECLARATION) {
+        generate_variable_declaration(c, node->as.var_dec);
     }
 }
 
