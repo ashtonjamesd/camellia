@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra
-EXEC = build/main
+EXEC = build/camc
 
 OBJS = src/main.c src/token.c src/lexer.c src/ast.c src/compile.c src/analyze.c src/symtab.c src/utils.c src/ppd.c
 

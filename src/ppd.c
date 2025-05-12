@@ -7,7 +7,7 @@
 
 PreProcessor *init_preprocessor(char *source) {
     PreProcessor *ppd = malloc(sizeof(PreProcessor));
-    ppd->macros = malloc(sizeof(Macro));
+    ppd->macros = malloc(sizeof(Macro *));
     ppd->source = strdup(source);
     ppd->count = 0;
     ppd->capacity = 1;
@@ -27,6 +27,8 @@ void free_preprocessor(PreProcessor *ppd) {
         free_macro(ppd->macros[i]);
     }
     free(ppd->macros);
+
+    free(ppd->source);
     free(ppd);
 }
 
@@ -46,7 +48,7 @@ char current(PreProcessor *ppd) {
 void add_macro(PreProcessor *ppd, char *name, char *value) {
     if (ppd->count >= ppd->capacity) {
         ppd->capacity *= 2;
-        ppd->macros = realloc(ppd->macros, sizeof(Macro) * ppd->capacity);
+        ppd->macros = realloc(ppd->macros, sizeof(Macro *) * ppd->capacity);
     }
 
     Macro *macro = malloc(sizeof(Macro));
@@ -65,7 +67,9 @@ char *replace_text(PreProcessor *ppd) {
     while (!is_end(ppd)) {
         if (isalpha(current(ppd)) || current(ppd) == '_') {
             int start = ppd->current;
-            while (isalnum(current(ppd)) || current(ppd) == '_') advance(ppd);
+            while (isalnum(current(ppd)) || current(ppd) == '_') {
+                advance(ppd);
+            }
             int len = ppd->current - start;
             char *lexeme = strndup(&ppd->source[start], len);
 
@@ -145,6 +149,8 @@ void process_include(PreProcessor *ppd) {
         char *name = strndup(&ppd->source[name_start], ppd->current - name_start);
         
         FILE *fptr = fopen(name, "r");
+        free(name);
+
         if (!fptr) {
             printf("File not found");
             return;
@@ -180,11 +186,12 @@ void process_include(PreProcessor *ppd) {
         strncpy(new_source, ppd->source, include_start);
         new_source[include_start] = '\0';
         
-        // this line appends only adds chars after 16idx in COntent if the first char is not a new line 
         strcat(new_source, "\n");
         strcat(new_source, content);
 
         strcat(new_source, &ppd->source[include_end]);
+
+        free(ppd->source);
         ppd->source = new_source;
 
         free(content);

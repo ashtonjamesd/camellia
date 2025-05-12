@@ -1,16 +1,41 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "lexer.h"
 #include "ast.h"
 #include "compile.h"
 #include "analyze.h"
 #include "ppd.h"
+#include "version.h"
 
-int main() {
-  FILE *fptr = fopen("example/example.c", "r");
+#define LEXER_DEBUG 1
+#define PARSER_DEBUG 1
+
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    printf("Usage: %s [ *.c ... ]\n", argv[0]);
+    return 1;
+  }
+  
+  if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+      printf("Usage: %s [ *.c ... ]\n", argv[0]);
+      printf("Options:\n");
+      printf("  --version | -v   Show compiler version\n");
+      printf("  --help | -h      Show this message\n");
+      return 0;
+  }
+
+  if (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0) {
+    printf("%s version %s\n", COMPILER_NAME, VERSION_STRING);
+    return 0;
+  }
+
+  char *file_path = argv[1];
+
+  FILE *fptr = fopen(file_path, "r");
   if (!fptr) {
-    perror("Error opening source file.");
+    printf("No such directory '%s'\n", file_path);
     return 1;
   }
 
@@ -22,21 +47,21 @@ int main() {
   fread(buff, 1, sz, fptr);
   buff[sz] = '\0';
 
-  char *processed_source = preprocess(buff);
-
-  int lexer_debug = 1;
-  Lexer *lexer = init_lexer(processed_source, lexer_debug);
-  if (lexer->err != NO_LEXER_ERROR) return 1;
-
   fclose(fptr);
+
+  char *processed_source = preprocess(buff);
   free(buff);
+
+  Lexer *lexer = init_lexer(processed_source, LEXER_DEBUG);
+  free(processed_source);
+
+  if (lexer->err != NO_LEXER_ERROR) {
+    return 1;
+  }
 
   tokenize(lexer);
 
-  return 0;
-
-  int parser_debug = 1;
-  Parser *parser = init_parser(lexer->tokens, parser_debug);
+  Parser *parser = init_parser(lexer->tokens, PARSER_DEBUG);
   parse_ast(parser);
 
   free_lexer(lexer);
