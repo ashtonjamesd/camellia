@@ -1,4 +1,5 @@
-#define LEFT 10
-#define RIGHT 10 + 2
+int x = 10;
 
-int x = LEFT + RIGHT;
+#define test 2
+
+int y = 4 + test;

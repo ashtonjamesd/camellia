@@ -131,6 +131,70 @@ void process_define(PreProcessor *ppd) {
     free(value);
 }
 
+void process_include(PreProcessor *ppd) {
+    while (current(ppd) == ' ' || current(ppd) == '\t') {
+        advance(ppd);
+    }
+
+    if (current(ppd) == '\"') {
+        advance(ppd);
+        int name_start = ppd->current;
+        while (!is_end(ppd) && current(ppd) != '\"') {
+            advance(ppd);
+        }
+        char *name = strndup(&ppd->source[name_start], ppd->current - name_start);
+        
+        FILE *fptr = fopen(name, "r");
+        if (!fptr) {
+            printf("File not found");
+            return;
+        }
+        fseek(fptr, 0, SEEK_END);
+        long sz = ftell(fptr);
+        fseek(fptr, 0, SEEK_SET);
+
+        char *content = malloc(sz + 1);
+        fread(content, sz, 1, fptr);
+        fclose(fptr);
+        content[sz] = '\0';
+
+        int include_start = ppd->current;
+        while (include_start > 0 && ppd->source[include_start - 1] != '#') {
+            include_start--;
+        }
+        include_start--; // maybe
+
+        int include_end = ppd->current;
+        while (ppd->source[include_end] != '\n' && !is_end(ppd) && ppd->source[include_end] != '\0') {
+            include_end++;
+        }
+
+        int new_len = (strlen(ppd->source) - (include_end - include_start)) + strlen(content) + 1;
+        
+        char *new_source = malloc(new_len);
+        if (!new_source) {
+            printf("Error allocating space for include.\n");
+            return;
+        }
+
+        strncpy(new_source, ppd->source, include_start);
+        new_source[include_start] = '\0';
+        
+        // this line appends only adds chars after 16idx in COntent if the first char is not a new line 
+        strcat(new_source, "\n");
+        strcat(new_source, content);
+
+        strcat(new_source, &ppd->source[include_end]);
+        ppd->source = new_source;
+
+        free(content);
+        ppd->current = include_start;
+    }
+    else if (current(ppd) == '<') {
+        // handle global header files
+    }
+}
+
 void process_undef(PreProcessor *ppd) {
     while (current(ppd) == ' ' || current(ppd) == '\t') {
         advance(ppd);
@@ -188,6 +252,9 @@ void parse_ppd(PreProcessor *ppd) {
             else if (strcmp("undef", keyword_buff) == 0) {
                 process_undef(ppd);
             }
+            else if (strcmp("include", keyword_buff) == 0) {
+                process_include(ppd);
+            }
         }
         else {
             keyword_buff[start++] = ppd->source[ppd->current];
@@ -204,11 +271,8 @@ char *preprocess(char *source) {
         if (current(ppd) == '#') {
             parse_ppd(ppd);
 
-            ppd->current--;
-            ppd->current--;
-            ppd->current--;
-            ppd->current--;
-            ppd->current--;
+            // i don't really know why but this makes it work
+            ppd->current -= 5;
         }
 
         ppd->current++;
