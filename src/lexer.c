@@ -111,7 +111,7 @@ static Token *parse_symbol(Lexer *lexer) {
         size_t len = strlen(symbol);
 
         if (strncmp(symbol, &lexer->source[lexer->current], len) == 0) {
-            return init_token(symbol, SYMBOLS[i].type);
+            return init_token(symbol, SYMBOLS[i].type, lexer->line);
         }
     }
 
@@ -172,7 +172,7 @@ static Token* parse_char(Lexer *lexer) {
         return NULL;
     }
 
-    Token *token = init_token(str, TOKEN_CHAR_LITERAL);
+    Token *token = init_token(str, TOKEN_CHAR_LITERAL, lexer->line);
     free(str);
 
     return token;
@@ -208,7 +208,7 @@ static Token* parse_string(Lexer *lexer) {
     strncpy(lexeme, lexer->source + start + 1, len);
     lexeme[len - 1] = '\0';
 
-    Token *token = init_token(lexeme, TOKEN_STRING_LITERAL);
+    Token *token = init_token(lexeme, TOKEN_STRING_LITERAL, lexer->line);
     free(lexeme);
 
     return token;
@@ -274,7 +274,7 @@ static Token* parse_numeric(Lexer *lexer) {
 
     recede(lexer);
 
-    Token *token = init_token(lexeme, type);
+    Token *token = init_token(lexeme, type, lexer->line);
     free(lexeme);
 
     return token;
@@ -295,14 +295,14 @@ static Token* parse_identifier(Lexer *lexer) {
 
     for (int i = 0; i < KEYWORDS_COUNT; i++) {
         if (strcmp(lexeme, KEYWORDS[i].symbol) == 0) {
-            Token *token = init_token(lexeme, KEYWORDS[i].type);
+            Token *token = init_token(lexeme, KEYWORDS[i].type, lexer->line);
             free(lexeme);
 
             return token;
         }
     }
 
-    Token *token = init_token(lexeme, TOKEN_IDENTIFIER);
+    Token *token = init_token(lexeme, TOKEN_IDENTIFIER, lexer->line);
     free(lexeme);
 
     return token;
@@ -374,6 +374,10 @@ void add_token(Token *token, Lexer *lexer) {
 void tokenize(Lexer *lexer) {
     while (lexer->source[lexer->current]) {
         while (isspace(current_char(lexer))) {
+            if (current_char(lexer) == '\n') {
+                lexer->line++;
+            }
+
             advance(lexer);
         }
         skip_comments(lexer);
@@ -385,7 +389,7 @@ void tokenize(Lexer *lexer) {
         advance(lexer);
     }
 
-    add_token(init_token("", TOKEN_EOF), lexer);
+    add_token(init_token("", TOKEN_EOF, lexer->line), lexer);
 
     if (lexer->err != NO_LEXER_ERROR) {
         printf("%s",lexer_err_to_str(lexer->err));

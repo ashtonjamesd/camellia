@@ -5,6 +5,7 @@
 #include "ast.h"
 #include "compile.h"
 #include "analyze.h"
+#include "ppd.h"
 
 int main() {
   FILE *fptr = fopen("example/example.c", "r");
@@ -21,14 +22,18 @@ int main() {
   fread(buff, 1, sz, fptr);
   buff[sz] = '\0';
 
-  int lexer_debug = 0;
-  Lexer *lexer = init_lexer(buff, lexer_debug);
+  char *processed_source = preprocess(buff);
+
+  int lexer_debug = 1;
+  Lexer *lexer = init_lexer(processed_source, lexer_debug);
   if (lexer->err != NO_LEXER_ERROR) return 1;
 
   fclose(fptr);
   free(buff);
 
   tokenize(lexer);
+
+  return 0;
 
   int parser_debug = 1;
   Parser *parser = init_parser(lexer->tokens, parser_debug);

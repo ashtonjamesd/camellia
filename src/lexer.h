@@ -18,6 +18,7 @@ typedef struct {
     int    current;
     int    token_capacity;
     int    token_count;
+    int    line;
 
     // whether to print debug information, used in development
     int    debug;

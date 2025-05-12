@@ -3,7 +3,7 @@
 
 #include "token.h"
 
-Token *init_token(const char *lexeme, TokenType type) {
+Token *init_token(const char *lexeme, TokenType type, int line) {
     Token *token = (Token *)malloc(sizeof(Token));
     token->lexeme = strdup(lexeme);
     token->type =type;
@@ -59,6 +59,13 @@ char *token_type_to_str(TokenType type) {
         case TOKEN_OCTAL_LITERAL: return "OCTAL LITERAL";
         case TOKEN_PLUS: return "PLUS";
         case TOKEN_MINUS: return "MINUS";
+        case TOKEN_INCLUDE: return "INCLUDE";
+        case TOKEN_DEFINE: return "DEFINE";
+        case TOKEN_UNDEF: return "UNDEF";
+        case TOKEN_IFDEF: return "IFDEF";
+        case TOKEN_IFNDEF: return "IFNDEF";
+        case TOKEN_ELIF: return "ELIF";
+        case TOKEN_ENDIF: return "ENDIF";
         default: return "UNKNOWN";
     };
 }

@@ -55,6 +55,11 @@ static void print_node(AstNode *node, int depth) {
 
         print_node(node->as.binary->right, depth + 2);
     }
+    else if (node->type == AST_IDENTIFIER) {
+        printf("IDENTIFIER:\n");
+        print_depth(depth + 2);
+        printf("VALUE: %s\n", node->as.ident->name);
+    }
     else {
         printf("UNKNOWN NODE TYPE: %d", node->type);
     }
@@ -131,8 +136,8 @@ static void free_node(AstNode *node) {
         free(node);
     }
     else if (node->type == AST_BINARY) {
-        free(node->as.binary->left);
-        free(node->as.binary->right);
+        free_node(node->as.binary->left);
+        free_node(node->as.binary->right);
         free(node->as.binary);
         free(node);
     }

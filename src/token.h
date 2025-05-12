@@ -30,6 +30,14 @@ typedef enum {
     TOKEN_DEFAULT,
     TOKEN_VOID,
 
+    TOKEN_INCLUDE,
+    TOKEN_DEFINE,
+    TOKEN_UNDEF,
+    TOKEN_IFDEF,
+    TOKEN_IFNDEF,
+    TOKEN_ELIF,
+    TOKEN_ENDIF,
+
     TOKEN_IDENTIFIER,
     TOKEN_STRING_LITERAL,
     TOKEN_INTEGER_LITERAL,
@@ -60,6 +68,7 @@ typedef enum {
 typedef struct {
     char     *lexeme;
     TokenType type;
+    int       line;
 } Token;
 
 typedef struct {
@@ -67,7 +76,7 @@ typedef struct {
     TokenType   type;
 } SymbolToken;
 
-extern Token *init_token(const char *lexeme, TokenType type);
+extern Token *init_token(const char *lexeme, TokenType type, int line);
 extern char *token_type_to_str(TokenType type);
 
 #endif

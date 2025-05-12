@@ -1,1 +1,4 @@
-2 * 2 + 2 - 23 * 4;
+#define LEFT 10
+#define RIGHT 10 + 2
+
+int x = LEFT + RIGHT;
