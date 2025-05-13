@@ -55,16 +55,17 @@ int main(int argc, char *argv[]) {
   Lexer *lexer = init_lexer(processed_source, LEXER_DEBUG);
   free(processed_source);
 
+  tokenize(lexer);
   if (lexer->err != NO_LEXER_ERROR) {
+    free_lexer(lexer);
     return 1;
   }
-
-  tokenize(lexer);
 
   Parser *parser = init_parser(lexer->tokens, PARSER_DEBUG);
   parse_ast(parser);
 
   free_lexer(lexer);
+
 
   // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
   // analyze_ast(analyzer);

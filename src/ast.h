@@ -17,6 +17,7 @@ typedef enum {
     TYPE_CHAR,
     TYPE_INT,
     TYPE_VOID,
+    TYPE_INVALID,
 } AstDataType;
 
 typedef struct AstNode AstNode;
@@ -54,7 +55,7 @@ typedef struct {
 
 typedef struct {
     AstNode *left;
-    Token op;
+    Token    op;
     AstNode *right;
 } AstBinaryExpr;
 

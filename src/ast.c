@@ -199,6 +199,10 @@ static inline void advance(Parser *parser) {
     parser->current++;
 }
 
+static inline void recede(Parser *parser) {
+    parser->current--;
+}
+
 static inline int is_end(Parser *parser) {
     return current_token(parser).type == TOKEN_EOF;
 }
@@ -345,34 +349,57 @@ static AstFunctionDeclaration *init_function_node(AstNode **body, int count, cha
     return func;
 }
 
+static AstDataType token_to_ast_data_type(Token token) {
+    switch (token.type) {
+        case TOKEN_INT: return TYPE_INT;
+        case TOKEN_CHAR: return TYPE_CHAR;
+        case TOKEN_VOID: return TYPE_VOID;
+    }
+
+    return TYPE_INVALID;
+}
+
 static AstNode *parse_function(Parser *parser) {
+    Token return_type_token = current_token(parser);
+    AstDataType type = token_to_ast_data_type(return_type_token);
+    if (type == TYPE_INVALID) return NULL;
+
     advance(parser);
 
-    Token function_name_token = current_token(parser);
+    Token identifier_token = current_token(parser);
     if (!match(TOKEN_IDENTIFIER, parser)) return NULL;
     advance(parser);
 
     if (!expect(TOKEN_LEFT_PAREN, parser)) return NULL;
     if (!expect(TOKEN_RIGHT_PAREN, parser)) return NULL;
 
+    if (match(TOKEN_SEMICOLON, parser)) {
+        advance(parser);
+
+        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, type);
+        AstNode *node = init_node(func, AST_FUNCTION);
+
+        return node;
+    }
+
     if (!expect(TOKEN_LEFT_BRACE, parser)) return NULL;
 
-    int count = 0;
-    int capacity = 1;
-    AstNode **body = malloc(sizeof(AstNode *) * capacity);
+    int body_statement_count = 0;
+    int body_capacity = 1;
+    AstNode **body = malloc(sizeof(AstNode *) * body_capacity);
     
     while (!match(TOKEN_RIGHT_BRACE, parser)) {
         AstNode *node = parse_statement(parser);
         if (!node) return NULL;
 
-        if (count >= capacity) {
-            capacity *= 2;
-            body = realloc(body, sizeof(AstNode *) * capacity);
+        if (body_statement_count >= body_capacity) {
+            body_capacity *= 2;
+            body = realloc(body, sizeof(AstNode *) * body_capacity);
         }
-        body[count++] = node;
+        body[body_statement_count++] = node;
     }
 
-    AstFunctionDeclaration *func = init_function_node(body, count, function_name_token.lexeme, TYPE_VOID);
+    AstFunctionDeclaration *func = init_function_node(body, body_statement_count, identifier_token.lexeme, type);
     AstNode *node = init_node(func, AST_FUNCTION);
 
     if (!expect(TOKEN_RIGHT_BRACE, parser)) {
@@ -403,12 +430,39 @@ static AstNode *parse_return(Parser *parser) {
     return node;
 }
 
-static AstNode *parse_statement(Parser *parser) {
-    if (match(TOKEN_INT, parser)) {
+static AstNode *parse_type(Parser *parser) {
+    advance(parser);
+
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return NULL;
+    }
+    advance(parser);
+
+    if (match(TOKEN_LEFT_PAREN, parser)) {
+        recede(parser);
+        recede(parser);
+
+        return parse_function(parser);
+    }
+    else if (match(TOKEN_SINGLE_EQUALS, parser)) {
+        recede(parser);
+        recede(parser);
+
         return parse_var_dec(parser);
     }
-    else if (match(TOKEN_VOID, parser)) {
-        return parse_function(parser);
+    else {
+        return NULL;
+    }
+}
+
+static Token peek(Parser *parser) {
+    if (is_end(parser)) return ;
+    return parser->tokens[parser->current + 1];
+}
+
+static AstNode *parse_statement(Parser *parser) {
+    if (match(TOKEN_INT, parser) || match(TOKEN_VOID, parser)) {
+        return parse_type(parser);
     }
     else if (match(TOKEN_RETURN, parser)) {
         return parse_return(parser);

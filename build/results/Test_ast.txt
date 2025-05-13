@@ -1,0 +1,4 @@
+:98:test_define_void_empty_body_function:PASS
+:99:test_define_int_empty_body_function:PASS
+:100:test_declare_void_empty_body_function:PASS
+expected SEMICOLON, got LEFT PARENA null node was returned.:25:test_declare_void_empty_body_function_implicit_int:FAIL: Expected TRUE Was FALSE
