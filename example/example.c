@@ -1,3 +1,3 @@
-int main() {
-    return 'a';
+void main() {
+    return 2 + 2 + 2 + 2 + 2 + 4 + 4;
 }

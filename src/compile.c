@@ -42,12 +42,19 @@ static inline void call(char *func, Compiler *c) {
     put(c, "  call %s", func);
 }
 
-void generate_variable_declaration(Compiler *c, AstVariableDeclaration *var_dec) {
-    
-}
-
 void generate_return(Compiler *c, AstReturn *ret) {
-    
+    if (ret->value->type == AST_LITERAL_INT) {
+        put(c, "  mov eax, %d", ret->value->as.lit_int->value); 
+    }
+    else if (ret->value->type == AST_LITERAL_CHAR) {
+        put(c, "  mov eax, %d", ret->value->as.lit_int->value); 
+    }
+    else if (ret->value->type == AST_CALL_EXPR) {
+        put(c, "  call %s", ret->value->as.call->identifier); 
+    }
+    else if (ret->value->type == AST_BINARY) {
+        generate_node(c, ret->value);
+    }
 }
 
 void generate_function(Compiler *c, AstFunctionDeclaration *func) {
@@ -60,6 +67,29 @@ void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     put(c, "  ret"); 
 }
 
+void generate_call_expr(Compiler *c, AstCallExpr *call) {
+    put(c, "  call %s", call->identifier); 
+}
+
+void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
+    if (binary->op.type == TOKEN_PLUS) {
+        generate_node(c, binary->left);
+        put(c, "  push rax");
+
+        generate_node(c, binary->right);
+        put(c, "  pop rbx");
+
+        put(c, "  add rax, rbx");
+    }
+    else {
+        fprintf(stderr, "Unsupported binary operator.\n");
+    }
+}
+
+void generate_lit_int(Compiler *c, AstLiteralInt *lit) {
+    put(c, "  mov rax, %d", lit->value);
+}
+
 void generate_node(Compiler *c, AstNode *node) {
     if (node->type == AST_FUNCTION) {
         generate_function(c, node->as.func);
@@ -67,8 +97,14 @@ void generate_node(Compiler *c, AstNode *node) {
     else if (node->type == AST_RETURN) {
         generate_return(c, node->as.ret);
     }
-    else if (node->type == AST_VARIABLE_DECLARATION) {
-        generate_variable_declaration(c, node->as.var_dec);
+    else if (node->type == AST_CALL_EXPR) {
+        generate_call_expr(c, node->as.call);
+    }
+    else if (node->type == AST_BINARY) {
+        generate_binary_expr(c, node->as.binary);
+    }
+    else if (node->type == AST_LITERAL_INT) {
+        generate_lit_int(c, node->as.lit_int);
     }
 }
 
@@ -79,8 +115,8 @@ void asm_init(Compiler *c) {
 
     put(c, "_start:");
     call("main", c);
+    put(c, "  mov ebx, eax");
     put(c, "  mov eax, 1");
-    put(c, "  mov ebx, 1");
     sys_call(c);
 }
 

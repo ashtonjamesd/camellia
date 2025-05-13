@@ -11,6 +11,7 @@ typedef enum {
     AST_RETURN,
     AST_IDENTIFIER,
     AST_BINARY,
+    AST_CALL_EXPR,
 } AstType;
 
 typedef enum {
@@ -57,6 +58,10 @@ typedef struct {
     AstNode *right;
 } AstBinaryExpr;
 
+typedef struct {
+    char *identifier;
+} AstCallExpr;
+
 struct AstNode {
     AstType type;
 
@@ -68,6 +73,7 @@ struct AstNode {
         AstReturn              *ret;
         AstIdentifier          *ident;
         AstBinaryExpr          *binary;
+        AstCallExpr            *call;
     } as;
 };
 

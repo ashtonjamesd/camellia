@@ -20,6 +20,15 @@ Then run:
 build/main
 ```
 
+<br/>
+<br/>
+
+For running the .asm file directly:
+
+```
+nasm -f elf64 out/out.asm; ld out/out.o -o out/main; ./out/main
+```
+
 
 <br/>
 
@@ -27,5 +36,7 @@ build/main
 
 Build and run tests with:
 ```
-make -f test/makefile.test
+make -f makefile.test
 ```
+
+

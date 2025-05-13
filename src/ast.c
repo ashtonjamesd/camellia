@@ -63,6 +63,11 @@ static void print_node(AstNode *node, int depth) {
         print_depth(depth + 2);
         printf("VALUE: %s\n", node->as.ident->name);
     }
+    else if (node->type == AST_CALL_EXPR) {
+        printf("CALL EXPR:\n");
+        print_depth(depth + 2);
+        printf("FUNC: %s\n", node->as.call->identifier);
+    }
     else {
         printf("UNKNOWN NODE TYPE: %d", node->type);
     }
@@ -150,6 +155,11 @@ static void free_node(AstNode *node) {
         free(node->as.binary);
         free(node);
     }
+    else if (node->type == AST_CALL_EXPR) {
+        free(node->as.call->identifier);
+        free(node->as.call);
+        free(node);
+    }
     else {
         printf("Unknown AstType in 'free_node': '%s'\n", ast_type_to_str(node->type));
         printf("You probably forgot to add this type to the if-else block.\n");
@@ -194,6 +204,9 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_BINARY) {
         node->as.binary = (AstBinaryExpr *)value;
+    }
+    else if (type == AST_CALL_EXPR) {
+        node->as.call = (AstCallExpr *)value;
     }
     else {
         printf("Unknown AstType in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -244,9 +257,14 @@ static inline int expect(TokenType type, Parser *parser) {
         return 1;
     }
 
-    printf("expected %s, got %s", token_type_to_str(type), token_type_to_str(parser->tokens[parser->current].type));
-
     return 0;
+}
+
+static AstCallExpr *init_call_expr(char *identifier) {
+    AstCallExpr *expr = malloc(sizeof(AstCallExpr));
+    expr->identifier = strdup(identifier);
+
+    return expr;
 }
 
 static AstNode *parse_primary(Parser *parser) {
@@ -269,8 +287,23 @@ static AstNode *parse_primary(Parser *parser) {
 
     }
     else if (token.type == TOKEN_IDENTIFIER) {
+        char *name = strdup(token.lexeme);
+
+        if (match(TOKEN_LEFT_PAREN, parser)) {
+            advance(parser);
+            
+            if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+                return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+            }
+        
+            AstCallExpr *expr = init_call_expr(name);
+            AstNode *node = init_node(expr, AST_CALL_EXPR);
+
+            return node;
+        }
+
         AstIdentifier *ident = malloc(sizeof(AstIdentifier));
-        ident->name = strdup(token.lexeme);
+        ident->name = name;
         AstNode *node = init_node(ident, AST_IDENTIFIER);
 
         return node;
@@ -458,12 +491,13 @@ static AstNode *parse_return(Parser *parser) {
         return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
     }
 
-    AstReturn *ret = init_return(return_expr);
-    AstNode *node = init_node(ret, AST_RETURN);
-
+    printf("%s", current_token(parser).lexeme);
     if (!expect(TOKEN_SEMICOLON, parser)) {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
+
+    AstReturn *ret = init_return(return_expr);
+    AstNode *node = init_node(ret, AST_RETURN);
 
     return node;
 }

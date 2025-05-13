@@ -80,11 +80,11 @@ int main(int argc, char *argv[]) {
   // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
   // analyze_ast(analyzer);
 
-  // Compiler *compiler = init_compiler(parser->tree, parser->node_count);
-  // compile(compiler);
+  Compiler *compiler = init_compiler(parser->tree, parser->node_count);
+  compile(compiler);
 
   free_parser(parser);
-  // free_compiler(compiler);
+  free_compiler(compiler);
 
   return 0;
 }
