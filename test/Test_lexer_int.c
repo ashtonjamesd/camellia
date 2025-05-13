@@ -7,10 +7,9 @@
 void setUp() {}
 void tearDown() {}
 
-void test_declare_int() {
+void test_unterminated_string_literal() {
     Lexer *lexer = init_lexer("int x;", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 4);
@@ -26,7 +25,6 @@ void test_declare_int() {
 void test_declare_int_with_initialization() {
     Lexer *lexer = init_lexer("int x = 10;", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 6);
@@ -44,7 +42,6 @@ void test_declare_int_with_initialization() {
 void test_declare_multiple_int() {
     Lexer *lexer = init_lexer("int x, y, z;", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 8);
@@ -65,7 +62,7 @@ void test_declare_multiple_int() {
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_declare_int);
+    RUN_TEST(test_unterminated_string_literal);
     RUN_TEST(test_declare_int_with_initialization);
     RUN_TEST(test_declare_multiple_int);
 

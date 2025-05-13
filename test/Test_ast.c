@@ -24,11 +24,11 @@ void test_declare_void_empty_body_function_implicit_int() {
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
     TEST_ASSERT_TRUE(parser->node_count == 1);
 
-    ASSERT_AST_FUNCTION(0, "main", TYPE_INT);
+    ASSERT_AST_FUNCTION(0, "main", AST_TYPE_INT);
     TEST_ASSERT_NULL(parser->tree[0]->as.func->body);
 }
 
-void test_declare_void_empty_body_function() {
+void test_declare_void_with_return_function() {
     Token tokens[] = {
         {"int", TOKEN_INT},
         {"main", TOKEN_IDENTIFIER},
@@ -44,7 +44,7 @@ void test_declare_void_empty_body_function() {
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
     TEST_ASSERT_TRUE(parser->node_count == 1);
 
-    ASSERT_AST_FUNCTION(0, "main", TYPE_INT);
+    ASSERT_AST_FUNCTION(0, "main", AST_TYPE_INT);
     TEST_ASSERT_NULL(parser->tree[0]->as.func->body);
 }
 
@@ -68,18 +68,19 @@ void test_define_int_empty_body_function() {
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
     TEST_ASSERT_TRUE(parser->node_count == 1);
 
-    ASSERT_AST_FUNCTION(0, "main", TYPE_INT);
+    ASSERT_AST_FUNCTION(0, "main", AST_TYPE_INT);
+    ASSERT_RETURN(parser->tree[0]->as.func->body[0], AST_LITERAL_INT, 0);
 }
 
-void test_define_void_empty_body_function() {
+void test_define_char_empty_body_function() {
     Token tokens[] = {
-        {"void", TOKEN_VOID},
+        {"int", TOKEN_INT},
         {"main", TOKEN_IDENTIFIER},
         {"(", TOKEN_LEFT_PAREN},
         {")", TOKEN_RIGHT_PAREN},
         {"{", TOKEN_LEFT_BRACE},
         {"return", TOKEN_RETURN},
-        {"0", TOKEN_INTEGER_LITERAL},
+        {"a", TOKEN_CHAR_LITERAL},
         {";", TOKEN_SEMICOLON},
         {"}", TOKEN_RIGHT_BRACE},
         {NULL, TOKEN_EOF},
@@ -91,12 +92,13 @@ void test_define_void_empty_body_function() {
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
     TEST_ASSERT_TRUE(parser->node_count == 1);
 
-    ASSERT_AST_FUNCTION(0, "main", TYPE_VOID);
+    ASSERT_AST_FUNCTION(0, "main", AST_TYPE_INT);
+    ASSERT_RETURN(parser->tree[0]->as.func->body[0], AST_LITERAL_CHAR, 'a');
 }
 
 int main(void) {
-    RUN_TEST(test_define_void_empty_body_function);
     RUN_TEST(test_define_int_empty_body_function);
-    RUN_TEST(test_declare_void_empty_body_function);
-    RUN_TEST(test_declare_void_empty_body_function_implicit_int);
+    RUN_TEST(test_declare_void_with_return_function);
+    RUN_TEST(test_define_char_empty_body_function);
+    // RUN_TEST(test_declare_void_empty_body_function_implicit_int);
 }

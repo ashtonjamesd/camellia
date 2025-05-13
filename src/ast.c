@@ -16,7 +16,10 @@ static void print_node(AstNode *node, int depth) {
     print_depth(depth);
 
     if (node->type == AST_LITERAL_INT) {
-        printf("LITERAL: %d", node->as.lit_int->value);
+        printf("LITERAL INT: %d", node->as.lit_int->value);
+    }
+    else if (node->type == AST_LITERAL_CHAR) {
+        printf("LITERAL CHAR: %c", node->as.lit_char->value);
     }
     else if (node->type == AST_VARIABLE_DECLARATION) {
         printf("VARIABLE DECLARATION:\n");
@@ -69,15 +72,17 @@ static void print_node(AstNode *node, int depth) {
 static char *parser_err_to_str(ParseErr err) {
     switch (err) {
         case NO_PARSER_ERROR: return "No parser error.";
+        case PARSE_ERR_EXPECTED_EXPRESSION: return "Expected Expression.";
+        case PARSE_ERR_EXPECTED_IDENTIFIER: return "Expected Identifier.";
+        case PARSE_ERR_EXPECTED_SEMICOLON: return "Expected Semicolon.";
+        case PARSE_ERR_VOID_NOT_ALLOWED: return "Void not allowed here.";
         default: return "UNKNOWN ERROR";
     }
 }
 
 void parser_print(Parser *parser) {
-    printf("\n\nPARSER OUTPUT (%d)\n", parser->node_count);
-    printf("Error: %s\n\n", parser_err_to_str(parser->err));
-
-    printf("AST Nodes:\n");
+  printf("\n\nPARSER SUCCESS\n");
+  printf("AST Nodes (%d):\n", parser->node_count);
     for (int i = 0; i < parser->node_count; i++) {
         AstNode *node = parser->tree[i];
         print_node(node, 1);
@@ -108,6 +113,10 @@ static void free_node(AstNode *node) {
 
     if (node->type == AST_LITERAL_INT) {
         free(node->as.lit_int);
+        free(node);
+    }
+    else if (node->type == AST_LITERAL_CHAR) {
+        free(node->as.lit_char);
         free(node);
     }
     else if (node->type == AST_VARIABLE_DECLARATION) {
@@ -168,6 +177,9 @@ static AstNode *init_node(void *value, AstType type){
     if (type == AST_LITERAL_INT) {
         node->as.lit_int = (AstLiteralInt *)value;
     }
+    else if (type == AST_LITERAL_CHAR) {
+        node->as.lit_char = (AstLiteralChar *)value;
+    }
     else if (type == AST_VARIABLE_DECLARATION) {
         node->as.var_dec = (AstVariableDeclaration *)value;
     }
@@ -211,6 +223,11 @@ static inline int match(TokenType type, Parser *parser) {
     return current_token(parser).type == type;
 }
 
+static inline void *parser_err(ParseErr err, Parser *parser) {
+    parser->err = err;
+    return NULL;
+}
+
 static int is_literal(Parser *parser) {
     return match(TOKEN_INTEGER_LITERAL, parser)
         || match(TOKEN_CHAR_LITERAL, parser)
@@ -242,6 +259,14 @@ static AstNode *parse_primary(Parser *parser) {
         AstNode *node = init_node(lit, AST_LITERAL_INT);
 
         return node;
+    }
+    else if (token.type == TOKEN_CHAR_LITERAL) {
+        AstLiteralChar *lit = malloc(sizeof(AstLiteralChar));
+        lit->value = token.lexeme[0];
+        AstNode *node = init_node(lit, AST_LITERAL_CHAR);
+
+        return node;
+
     }
     else if (token.type == TOKEN_IDENTIFIER) {
         AstIdentifier *ident = malloc(sizeof(AstIdentifier));
@@ -300,7 +325,7 @@ static AstNode *parse_expression(Parser *parser) {
 static AstVariableDeclaration *init_var_dec(char* identifier, AstNode *literal) {
     AstVariableDeclaration *var_dec = (AstVariableDeclaration *)malloc(sizeof(AstVariableDeclaration));
     var_dec->identifier = strdup(identifier);
-    var_dec->type = TYPE_INT;
+    var_dec->type = AST_TYPE_INT;
     var_dec->value = literal;
 
     return var_dec;
@@ -311,7 +336,9 @@ static AstNode *parse_var_dec(Parser *parser) {
     advance(parser);
 
     Token id_token = current_token(parser);
-    if (!expect(TOKEN_IDENTIFIER, parser)) return NULL;
+    if (!expect(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+    }
 
     if (match(TOKEN_SEMICOLON, parser)) {
         advance(parser);
@@ -322,15 +349,21 @@ static AstNode *parse_var_dec(Parser *parser) {
         return node;
     }
 
-    if (!expect(TOKEN_SINGLE_EQUALS, parser)) return NULL;
-    if (!is_literal(parser)) return NULL;
+    if (!expect(TOKEN_SINGLE_EQUALS, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+    if (!is_literal(parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
 
-    AstNode *literal = parse_primary(parser);
-    if (!literal) return NULL;
+    AstNode *literal = parse_expression(parser);
+    if (!literal) {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
 
     if (!expect(TOKEN_SEMICOLON, parser)) {
         free_node(literal);
-        return NULL;
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
     
     AstVariableDeclaration *var_dec = init_var_dec(id_token.lexeme, literal);
@@ -351,18 +384,18 @@ static AstFunctionDeclaration *init_function_node(AstNode **body, int count, cha
 
 static AstDataType token_to_ast_data_type(Token token) {
     switch (token.type) {
-        case TOKEN_INT: return TYPE_INT;
-        case TOKEN_CHAR: return TYPE_CHAR;
-        case TOKEN_VOID: return TYPE_VOID;
+        case TOKEN_INT: return AST_TYPE_INT;
+        case TOKEN_CHAR: return AST_TYPE_CHAR;
+        case TOKEN_VOID: return AST_TYPE_VOID;
     }
 
-    return TYPE_INVALID;
+    return AST_TYPE_INVALID;
 }
 
 static AstNode *parse_function(Parser *parser) {
     Token return_type_token = current_token(parser);
     AstDataType type = token_to_ast_data_type(return_type_token);
-    if (type == TYPE_INVALID) return NULL;
+    if (type == AST_TYPE_INVALID) return NULL;
 
     advance(parser);
 
@@ -420,21 +453,26 @@ static AstReturn *init_return(AstNode *value) {
 static AstNode *parse_return(Parser *parser) {
     advance(parser);
 
-    AstNode *return_item = parse_primary(parser);
+    AstNode *return_expr = parse_expression(parser);
+    if (!return_expr) {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
 
-    AstReturn *ret = init_return(return_item);
+    AstReturn *ret = init_return(return_expr);
     AstNode *node = init_node(ret, AST_RETURN);
 
-    if (!expect(TOKEN_SEMICOLON, parser)) return NULL;
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
 
     return node;
 }
 
-static AstNode *parse_type(Parser *parser) {
+static AstNode *parse_type_statement(Parser *parser) {
     advance(parser);
 
     if (!match(TOKEN_IDENTIFIER, parser)) {
-        return NULL;
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
     }
     advance(parser);
 
@@ -448,32 +486,41 @@ static AstNode *parse_type(Parser *parser) {
         recede(parser);
         recede(parser);
 
+        if (match(TOKEN_VOID, parser)) {
+            return parser_err(PARSE_ERR_VOID_NOT_ALLOWED, parser);
+        }
+
+        return parse_var_dec(parser);
+    }
+    else if (match(TOKEN_SEMICOLON, parser)) {
+        recede(parser);
+        recede(parser);
+
+        if (match(TOKEN_VOID, parser)) {
+            return parser_err(PARSE_ERR_VOID_NOT_ALLOWED, parser);
+        }
+
         return parse_var_dec(parser);
     }
     else {
-        return NULL;
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
 }
 
-static Token peek(Parser *parser) {
-    if (is_end(parser)) return ;
-    return parser->tokens[parser->current + 1];
-}
-
 static AstNode *parse_statement(Parser *parser) {
-    if (match(TOKEN_INT, parser) || match(TOKEN_VOID, parser)) {
-        return parse_type(parser);
+    if (token_to_ast_data_type(current_token(parser)) != AST_TYPE_INVALID) {
+        return parse_type_statement(parser);
     }
     else if (match(TOKEN_RETURN, parser)) {
         return parse_return(parser);
     }
     else {
         AstNode *expr = parse_expression(parser);
-        if (!expr) return NULL;
+        if (!expr) return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
 
         if (!expect(TOKEN_SEMICOLON, parser)) {
             free_node(expr);
-            return NULL;
+            return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
         }
 
         return expr;
@@ -484,7 +531,6 @@ void parse_ast(Parser *parser) {
     while (!is_end(parser)) {
         AstNode *node = parse_statement(parser);
         if (!node) {
-            printf("A null node was returned.");
             break;
         }
         
@@ -496,6 +542,10 @@ void parse_ast(Parser *parser) {
         parser->tree[parser->node_count++] = node;
 
         if (is_end(parser)) break;
+    }
+
+    if (parser->err != NO_PARSER_ERROR) {
+        printf("%s\n", parser_err_to_str(parser->err));
     }
 
     if (parser->debug) parser_print(parser);

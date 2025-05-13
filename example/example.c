@@ -1,1 +1,3 @@
-main();
+int main() {
+    return 'a';
+}

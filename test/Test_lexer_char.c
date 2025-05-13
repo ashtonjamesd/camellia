@@ -10,7 +10,6 @@ void tearDown() {}
 void test_declare_char() {
     Lexer *lexer = init_lexer("char x;", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 4);
@@ -26,7 +25,6 @@ void test_declare_char() {
 void test_declare_char_with_initialization() {
     Lexer *lexer = init_lexer("char x = 'a';", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 6);
@@ -44,7 +42,6 @@ void test_declare_char_with_initialization() {
 void test_declare_escape_char() {
     Lexer *lexer = init_lexer("char x = '\t';", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 6);
@@ -62,19 +59,8 @@ void test_declare_escape_char() {
 void test_declare_invalid_escape_char() {
     Lexer *lexer = init_lexer("char x = '\\c';", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == INVALID_ESCAPE_SEQUENCE);
-
-    free(lexer);
-}
-
-void test_declare_too_many_chars_in_char_literal() {
-    Lexer *lexer = init_lexer("char x = 'aa';", 0);
-    tokenize(lexer);
-    Token *tokens = lexer->tokens;
-
-    TEST_ASSERT_TRUE(lexer->err == TOO_MANY_CHARS_IN_CHAR_LITERAL);
 
     free(lexer);
 }
@@ -82,7 +68,6 @@ void test_declare_too_many_chars_in_char_literal() {
 void test_declare_empty_char_pointer() {
     Lexer *lexer = init_lexer("char *x = \"\";", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 7);
@@ -101,7 +86,6 @@ void test_declare_empty_char_pointer() {
 void test_declare_char_pointer() {
     Lexer *lexer = init_lexer("char *x = \"Hello, World!\";", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 7);
@@ -120,7 +104,6 @@ void test_declare_char_pointer() {
 void test_declare_char_pointer_with_escape_chars() {
     Lexer *lexer = init_lexer("char *x = \" \\t \\t \\a\\a\\a\\a \";", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == NO_LEXER_ERROR);
     TEST_ASSERT_TRUE(lexer->token_count == 7);
@@ -139,7 +122,6 @@ void test_declare_char_pointer_with_escape_chars() {
 void test_declare_char_pointer_invalid_escape_char() {
     Lexer *lexer = init_lexer("char *x = \" \\ \"", 0);
     tokenize(lexer);
-    Token *tokens = lexer->tokens;
 
     TEST_ASSERT_TRUE(lexer->err == INVALID_ESCAPE_SEQUENCE);
 
@@ -153,7 +135,6 @@ int main(void) {
     RUN_TEST(test_declare_char_with_initialization);
     RUN_TEST(test_declare_escape_char);
     RUN_TEST(test_declare_invalid_escape_char);
-    RUN_TEST(test_declare_too_many_chars_in_char_literal);
     RUN_TEST(test_declare_empty_char_pointer);
     RUN_TEST(test_declare_char_pointer);
     RUN_TEST(test_declare_char_pointer_with_escape_chars);

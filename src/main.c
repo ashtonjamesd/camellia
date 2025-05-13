@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
       printf("Usage: %s [ *.c ... ]\n", argv[0]);
       printf("Options:\n");
       printf("  --version | -v   Show compiler version\n");
-      printf("  --help | -h      Show this message\n");
+      printf("  --help    | -h   Show this message\n");
       return 0;
   }
 
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
   FILE *fptr = fopen(file_path, "r");
   if (!fptr) {
-    printf("No such directory '%s'\n", file_path);
+    fprintf(stderr, "error: file not found '%s'\n", file_path);
     return 1;
   }
 
@@ -43,17 +43,23 @@ int main(int argc, char *argv[]) {
   unsigned long long sz = ftell(fptr);
   rewind(fptr);
 
-  char *buff = (char *)malloc(sz + 1);
-  fread(buff, 1, sz, fptr);
-  buff[sz] = '\0';
+  char *source = (char *)malloc(sz + 1);
+  if (!source) {
+    printf("Allocation failed for source.");
+    fprintf(stderr, "Allocation failed for source.");
+    return 1;
+  }
+
+  fread(source, 1, sz, fptr);
+  source[sz] = '\0';
 
   fclose(fptr);
 
-  char *processed_source = preprocess(buff);
-  free(buff);
+  char *preprocessed_source = preprocess(source);
+  free(source);
 
-  Lexer *lexer = init_lexer(processed_source, LEXER_DEBUG);
-  free(processed_source);
+  Lexer *lexer = init_lexer(preprocessed_source, LEXER_DEBUG);
+  free(preprocessed_source);
 
   tokenize(lexer);
   if (lexer->err != NO_LEXER_ERROR) {
@@ -66,6 +72,10 @@ int main(int argc, char *argv[]) {
 
   free_lexer(lexer);
 
+  if (parser->err != NO_PARSER_ERROR) {
+    free_parser(parser);
+    return 1;
+  }
 
   // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
   // analyze_ast(analyzer);

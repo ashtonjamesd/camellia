@@ -14,9 +14,9 @@ char* ast_type_to_str(AstType type) {
 
 char *data_type_to_str(AstDataType type) {
     switch (type) {
-        case TYPE_CHAR: return "CHAR";
-        case TYPE_INT: return "INT";
-        case TYPE_VOID: return "VOID";
+        case AST_TYPE_CHAR: return "CHAR";
+        case AST_TYPE_INT: return "INT";
+        case AST_TYPE_VOID: return "VOID";
         default: return "UNKNOWN TYPE";
     }
 }

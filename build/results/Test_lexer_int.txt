@@ -1,6 +1,6 @@
-test/Test_lexer_int.c:68:test_declare_int:PASS
-test/Test_lexer_int.c:69:test_declare_int_with_initialization:PASS
-test/Test_lexer_int.c:70:test_declare_multiple_int:PASS
+test/Test_lexer_int.c:65:test_unterminated_string_literal:PASS
+test/Test_lexer_int.c:66:test_declare_int_with_initialization:PASS
+test/Test_lexer_int.c:67:test_declare_multiple_int:PASS
 
 -----------------------
 3 Tests 0 Failures 0 Ignored 

@@ -1,16 +1,14 @@
-test/Test_lexer_char.c:152:test_declare_char:PASS
-test/Test_lexer_char.c:153:test_declare_char_with_initialization:PASS
-test/Test_lexer_char.c:154:test_declare_escape_char:PASS
+test/Test_lexer_char.c:134:test_declare_char:PASS
+test/Test_lexer_char.c:135:test_declare_char_with_initialization:PASS
+test/Test_lexer_char.c:136:test_declare_escape_char:PASS
 Invalid escape character.
-test/Test_lexer_char.c:155:test_declare_invalid_escape_char:PASS
-Too many characters in char literal.
-test/Test_lexer_char.c:156:test_declare_too_many_chars_in_char_literal:PASS
-test/Test_lexer_char.c:157:test_declare_empty_char_pointer:PASS
-test/Test_lexer_char.c:158:test_declare_char_pointer:PASS
-test/Test_lexer_char.c:159:test_declare_char_pointer_with_escape_chars:PASS
+test/Test_lexer_char.c:137:test_declare_invalid_escape_char:PASS
+test/Test_lexer_char.c:138:test_declare_empty_char_pointer:PASS
+test/Test_lexer_char.c:139:test_declare_char_pointer:PASS
+test/Test_lexer_char.c:140:test_declare_char_pointer_with_escape_chars:PASS
 Invalid escape character.
-test/Test_lexer_char.c:160:test_declare_char_pointer_invalid_escape_char:PASS
+test/Test_lexer_char.c:141:test_declare_char_pointer_invalid_escape_char:PASS
 
 -----------------------
-9 Tests 0 Failures 0 Ignored 
+8 Tests 0 Failures 0 Ignored 
 OK

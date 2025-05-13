@@ -14,21 +14,19 @@ typedef enum {
 } AstType;
 
 typedef enum {
-    TYPE_CHAR,
-    TYPE_INT,
-    TYPE_VOID,
-    TYPE_INVALID,
+    AST_TYPE_CHAR,
+    AST_TYPE_INT,
+    AST_TYPE_VOID,
+    AST_TYPE_INVALID,
 } AstDataType;
 
 typedef struct AstNode AstNode;
 
 typedef struct {
-    char *type;
     int   value;
 } AstLiteralInt;
 
 typedef struct {
-    char *type;
     char  value;
 } AstLiteralChar;
 
@@ -74,7 +72,11 @@ struct AstNode {
 };
 
 typedef enum {
-    NO_PARSER_ERROR
+    NO_PARSER_ERROR,
+    PARSE_ERR_EXPECTED_EXPRESSION,
+    PARSE_ERR_EXPECTED_IDENTIFIER,
+    PARSE_ERR_EXPECTED_SEMICOLON,
+    PARSE_ERR_VOID_NOT_ALLOWED,
 } ParseErr;
 
 typedef struct {
