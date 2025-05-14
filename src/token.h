@@ -69,6 +69,7 @@ typedef struct {
     char     *lexeme;
     TokenType type;
     int       line;
+    int       has_whitespace_after;
 } Token;
 
 typedef struct {
@@ -76,7 +77,6 @@ typedef struct {
     TokenType   type;
 } SymbolToken;
 
-extern Token *init_token(const char *lexeme, TokenType type, int line);
 extern char *token_type_to_str(TokenType type);
 
 #endif

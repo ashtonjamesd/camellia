@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
+
 #include "ast.h"
 #include "utils.h"
 
@@ -96,10 +98,11 @@ static void print_node(AstNode *node, int depth) {
 static char *parser_err_to_str(ParseErr err) {
     switch (err) {
         case NO_PARSER_ERROR: return "no parser error";
-        case PARSE_ERR_EXPECTED_EXPRESSION: return "expected Expression";
-        case PARSE_ERR_EXPECTED_IDENTIFIER: return "expected Identifier";
-        case PARSE_ERR_EXPECTED_SEMICOLON: return "expected Semicolon";
+        case PARSE_ERR_EXPECTED_EXPRESSION: return "expected expression";
+        case PARSE_ERR_EXPECTED_IDENTIFIER: return "expected identifier";
+        case PARSE_ERR_EXPECTED_SEMICOLON: return "expected semicolon";
         case PARSE_ERR_VOID_NOT_ALLOWED: return "void not allowed here";
+        case PARSE_ERR_INVALID_SYNTAX: return "invalid syntax";
         default: return "unknown error, ummm oops";
     }
 }
@@ -242,20 +245,72 @@ static inline void *parser_err(ParseErr err, Parser *parser) {
     return NULL;
 }
 
+int lenHelper(unsigned x) {
+    if (x >= 1000000000) return 10;
+    if (x >= 100000000)  return 9;
+    if (x >= 10000000)   return 8;
+    if (x >= 1000000)    return 7;
+    if (x >= 100000)     return 6;
+    if (x >= 10000)      return 5;
+    if (x >= 1000)       return 4;
+    if (x >= 100)        return 3;
+    if (x >= 10)         return 2;
+    return 1;
+}
+
 static void pretty_error(Parser *parser) {
-    printf("\n%s:%d\n", parser->file, 1);
+    Token errTok;
+
+    recede(parser);
+    errTok = current_token(parser);
+
+    if (errTok.lexeme == NULL) {
+        advance(parser);
+        for (int i = parser->current; i >= 0; i--) {
+            if (parser->tokens[i].type != TOKEN_EOF) {
+                errTok = parser->tokens[i];
+                break;
+            }
+        }
+    }
+
+    printf("\n%s:%d\n", parser->file, errTok.line);
     printf("error: %s\n", parser_err_to_str(parser->err));
 
-    // find last non null and non eof token and use that as the error token
+    const int line_num_len = 6; // '   XX | ' is 6 characters
+    printf("   %d | ", errTok.line);
 
-    // for (int i = 0; !is_end(parser) && parser->tokens[i].type != TOKEN_EOF; i++) {
-    //     if (parser->tokens[i].line == parser->errToken.line) {
-    //         printf("%s ", parser->tokens[i].lexeme);
-    //     }
-    // }
+    int char_pos = 0;
+    int caret_pos = -1;
 
-    // printf("\nerror token: %s", parser->errToken.lexeme);
+    for (int i = 0; parser->tokens[i].type != TOKEN_EOF; i++) {
+        Token tok = parser->tokens[i];
+        if (tok.line != errTok.line) continue;
+
+        if (caret_pos == -1 &&
+            tok.line == errTok.line &&
+            strcmp(tok.lexeme, errTok.lexeme) == 0) {
+            caret_pos = char_pos;
+        }
+
+        printf("%s", tok.lexeme);
+        char_pos += strlen(tok.lexeme);
+
+        if (tok.has_whitespace_after) {
+            printf(" ");
+            char_pos++;
+        }
+    }
+
+    if (caret_pos == -1) caret_pos = char_pos;
+
+    printf("\n     | ");
+    for (int i = 0; i < caret_pos + 1; i++) {
+        printf(" ");
+    }
+    printf("^\n");
 }
+
 
 static int is_literal(Parser *parser) {
     return match(TOKEN_INTEGER_LITERAL, parser)
@@ -515,7 +570,6 @@ static AstNode *parse_return(Parser *parser) {
         return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
     }
 
-    printf("%s", current_token(parser).lexeme);
     if (!expect(TOKEN_SEMICOLON, parser)) {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
