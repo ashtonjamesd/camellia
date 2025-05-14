@@ -18,7 +18,7 @@ void test_declare_void_empty_body_function_implicit_int() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
@@ -38,7 +38,7 @@ void test_declare_void_with_return_function() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
@@ -62,7 +62,7 @@ void test_define_int_empty_body_function() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);
@@ -86,7 +86,7 @@ void test_define_char_empty_body_function() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == NO_PARSER_ERROR);

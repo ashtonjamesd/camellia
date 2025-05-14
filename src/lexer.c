@@ -68,20 +68,21 @@ Lexer *init_lexer(char *source, int debug) {
     lexer->tokens = (Token *)malloc(sizeof(Token));
     lexer->err = NO_LEXER_ERROR;
     lexer->debug = debug;
+    lexer->line = 1;
 
     return lexer;
 }
 
 char *lexer_err_to_str(LexErr err) {
     switch (err) {
-        case EMPTY_CHAR_LITERAL: return "A char literal cannot be empty.\n";
-        case INVALID_ESCAPE_SEQUENCE: return "Invalid escape character.\n";
-        case UNTERMINATED_STRING_LITERAL: return "Unterminated string literal.\n";
-        case TOO_MANY_CHARS_IN_CHAR_LITERAL: return "Too many characters in char literal.\n";
-        case INVALID_NUMERIC_TOKEN: return "Invalid numeric declaration.\n";
-        case INVALID_SYMBOL: return "Invalid symbol.\n";
-        case NO_LEXER_ERROR: return "No lexer error.\n";
-        default: return "Unknown Error - uhhhh, oops.\n";
+        case EMPTY_CHAR_LITERAL: return "a char literal cannot be empty\n";
+        case INVALID_ESCAPE_SEQUENCE: return "invalid escape character\n";
+        case UNTERMINATED_STRING_LITERAL: return "unterminated string literal\n";
+        case TOO_MANY_CHARS_IN_CHAR_LITERAL: return "too many characters in char literal\n";
+        case INVALID_NUMERIC_TOKEN: return "invalid numeric declaration\n";
+        case INVALID_SYMBOL: return "invalid symbol\n";
+        case NO_LEXER_ERROR: return "no lexer error\n";
+        default: return "unknown error - uhhhh, oops\n";
     }
 }
 
@@ -362,7 +363,7 @@ void skip_comments(Lexer *lexer) {
 void print_lexer(Lexer *lexer) {
   printf("\n\nLEXER SUCCESS\n");
   for (int i = 0; i < lexer->token_count; i++) {
-        printf("%d '%s': %s\n", i, lexer->tokens[i].lexeme, token_type_to_str(lexer->tokens[i].type));
+        printf("%d:%d '%s': %s\n", i, lexer->tokens[i].line, lexer->tokens[i].lexeme, token_type_to_str(lexer->tokens[i].type));
     }
 }
 

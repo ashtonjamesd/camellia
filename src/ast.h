@@ -82,6 +82,7 @@ typedef enum {
     PARSE_ERR_EXPECTED_EXPRESSION,
     PARSE_ERR_EXPECTED_IDENTIFIER,
     PARSE_ERR_EXPECTED_SEMICOLON,
+    PARSE_ERR_INVALID_SYNTAX,
     PARSE_ERR_VOID_NOT_ALLOWED,
 } ParseErr;
 
@@ -92,10 +93,16 @@ typedef struct {
     int       debug;
     int       current;
     Token    *tokens;
+
+    // the name of the file being parsed
+    char     *file;
     ParseErr  err;
+
+    // the token that caused the err, null if none occurred
+    Token     errToken;
 } Parser;
 
-extern Parser *init_parser(Token *tokens, int debug);
+extern Parser *init_parser(Token *tokens, int debug, char *file);
 extern void parse_ast(Parser *parser);
 extern void free_parser(Parser *parser);
 

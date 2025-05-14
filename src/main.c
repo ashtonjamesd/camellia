@@ -9,7 +9,7 @@
 #include "ppd.h"
 #include "version.h"
 
-#define match(long, short) strcmp(argv[i], long) == 0 || strcmp(argv[i], short) == 0
+#define match(long_arg, short_arg) strcmp(argv[i], long_arg) == 0 || strcmp(argv[i], short_arg) == 0
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  Parser *parser = init_parser(lexer->tokens, debug);
+  Parser *parser = init_parser(lexer->tokens, debug, file_path);
   parse_ast(parser);
 
   free_lexer(lexer);

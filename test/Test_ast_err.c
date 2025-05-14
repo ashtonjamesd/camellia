@@ -15,7 +15,7 @@ void test_expect_identifier_int() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == PARSE_ERR_EXPECTED_IDENTIFIER);
@@ -28,7 +28,7 @@ void test_expect_semicolon_int() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == PARSE_ERR_EXPECTED_SEMICOLON);
@@ -41,7 +41,7 @@ void test_invalid_void_token() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == PARSE_ERR_EXPECTED_SEMICOLON);
@@ -55,7 +55,21 @@ void test_invalid_void_token_with_equals() {
         {NULL, TOKEN_EOF},
     };
 
-    Parser *parser = init_parser(tokens, 0);
+    Parser *parser = init_parser(tokens, 0, "");
+    parse_ast(parser);
+
+    TEST_ASSERT_TRUE(parser->err == PARSE_ERR_VOID_NOT_ALLOWED);
+}
+
+void test_invalid_func() {
+    Token tokens[] = {
+        {"void", TOKEN_VOID},
+        {"x", TOKEN_IDENTIFIER},
+        {"=", TOKEN_SINGLE_EQUALS},
+        {NULL, TOKEN_EOF},
+    };
+
+    Parser *parser = init_parser(tokens, 0, "");
     parse_ast(parser);
 
     TEST_ASSERT_TRUE(parser->err == PARSE_ERR_VOID_NOT_ALLOWED);

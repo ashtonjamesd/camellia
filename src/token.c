@@ -6,7 +6,8 @@
 Token *init_token(const char *lexeme, TokenType type, int line) {
     Token *token = (Token *)malloc(sizeof(Token));
     token->lexeme = strdup(lexeme);
-    token->type =type;
+    token->type = type;
+    token->line = line;
 
     return token;
 }

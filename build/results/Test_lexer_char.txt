@@ -1,12 +1,12 @@
 test/Test_lexer_char.c:134:test_declare_char:PASS
 test/Test_lexer_char.c:135:test_declare_char_with_initialization:PASS
 test/Test_lexer_char.c:136:test_declare_escape_char:PASS
-Invalid escape character.
+invalid escape character
 test/Test_lexer_char.c:137:test_declare_invalid_escape_char:PASS
 test/Test_lexer_char.c:138:test_declare_empty_char_pointer:PASS
 test/Test_lexer_char.c:139:test_declare_char_pointer:PASS
 test/Test_lexer_char.c:140:test_declare_char_pointer_with_escape_chars:PASS
-Invalid escape character.
+invalid escape character
 test/Test_lexer_char.c:141:test_declare_char_pointer_invalid_escape_char:PASS
 
 -----------------------

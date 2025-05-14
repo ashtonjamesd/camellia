@@ -1,3 +1,7 @@
-void main() {
-    return 2 * 4 + 2 * 2 - 6 + 2;
-}
+
+
+
+int x;
+
+void main()   {
+    

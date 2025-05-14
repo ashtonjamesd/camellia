@@ -6,7 +6,7 @@
 
 #include "compile.h"
 
-void generate_node(Compiler *c, AstNode *node);
+static void generate_node(Compiler *c, AstNode *node);
 
 Compiler *init_compiler(AstNode **tree, int count, char *exe, int emitAsm, int emitObj) {
     Compiler *c = malloc(sizeof(Compiler));
@@ -29,7 +29,7 @@ void free_compiler(Compiler *c) {
     free(c);
 }
 
-void put(Compiler *c, const char *format, ...) {
+static void put(Compiler *c, const char *format, ...) {
     va_list args;
     va_start(args, format);
     fprintf(c->file, "  ");
@@ -38,7 +38,7 @@ void put(Compiler *c, const char *format, ...) {
     va_end(args);
 }
 
-void putf(Compiler *c, const char *format, ...) {
+static void putf(Compiler *c, const char *format, ...) {
     va_list args;
     va_start(args, format);
     vfprintf(c->file, format, args);
@@ -54,7 +54,7 @@ static inline void call(char *func, Compiler *c) {
     put(c, "call %s", func);
 }
 
-void generate_return(Compiler *c, AstReturn *ret) {
+static void generate_return(Compiler *c, AstReturn *ret) {
     if (ret->value->type == AST_LITERAL_INT) {
         put(c, "mov eax, %d", ret->value->as.lit_int->value); 
     }
@@ -69,7 +69,7 @@ void generate_return(Compiler *c, AstReturn *ret) {
     }
 }
 
-void generate_function(Compiler *c, AstFunctionDeclaration *func) {
+static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     fprintf(c->file, "\n%s:\n", func->identifier);
 
     for (int i = 0; i < func->count; i++) {
@@ -79,11 +79,11 @@ void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     put(c, "ret"); 
 }
 
-void generate_call_expr(Compiler *c, AstCallExpr *call_expr) {
+static void generate_call_expr(Compiler *c, AstCallExpr *call_expr) {
     call(call_expr->identifier, c);
 }
 
-void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
+static void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
     if (binary->op.type == TOKEN_PLUS) {
         generate_node(c, binary->left);
         put(c, "push rax");
@@ -114,11 +114,11 @@ void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
     }
 }
 
-void generate_lit_int(Compiler *c, AstLiteralInt *lit) {
+static void generate_lit_int(Compiler *c, AstLiteralInt *lit) {
     put(c, "mov rax, %d", lit->value);
 }
 
-void generate_node(Compiler *c, AstNode *node) {
+static void generate_node(Compiler *c, AstNode *node) {
     if (node->type == AST_FUNCTION) {
         generate_function(c, node->as.func);
     }
@@ -136,7 +136,7 @@ void generate_node(Compiler *c, AstNode *node) {
     }
 }
 
-void asm_init(Compiler *c) {
+static void asm_init(Compiler *c) {
     putf(c, "section .data");
     putf(c, "section .text");
     put(c, "global _start\n");
@@ -148,7 +148,7 @@ void asm_init(Compiler *c) {
     sys_call(c);
 }
 
-int check_main(Compiler *c) {
+static int check_main(Compiler *c) {
     int has_entry_point = 0;
     for (int i = 0; i < c->node_count; i++) {
         if (c->tree[i]->type == AST_FUNCTION) {
@@ -166,20 +166,16 @@ void compile(Compiler *c) {
     const char* asmFile = "out.asm";
     const char* objectFile = "out.o";
 
-    struct stat st = {0};
-    if (stat("out/", &st) == -1) {
-        mkdir("out/", 0777);
-    }
     FILE *fptr = fopen(asmFile, "w");
     if (!fptr) {
-        perror("Error opening file");
+        fprintf(stderr, "error: could not open file '%s'\n", asmFile);
         return;
     }
     c->file = fptr;
 
     int has_entry_point = check_main(c);
     if (!has_entry_point) {
-        printf("'main' function not defined.");
+        printf("'main' not defined.\n");
         return;
     }
 
@@ -191,7 +187,7 @@ void compile(Compiler *c) {
 
     fclose(c->file);
 
-    char command[512];
+    char command[256];
     snprintf(command, sizeof(command), "nasm -f elf64 %s", asmFile);
     if (system(command) != 0) {
         fprintf(stderr, "NASM assembly failed.\n");

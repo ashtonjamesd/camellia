@@ -6,6 +6,25 @@
 
 static AstNode *parse_statement(Parser *parser);
 
+Parser *init_parser(Token *tokens, int debug, char *file) {
+    Parser *parser = (Parser *)malloc(sizeof(Parser));
+    if (!parser) {
+        perror("Error allocating parser.");
+        return NULL;
+    }
+
+    parser->node_count = 0;
+    parser->node_capacity = 1;
+    parser->debug = debug;
+    parser->tree = malloc(sizeof(AstNode *) * parser->node_capacity);
+    parser->tokens = tokens;
+    parser->err = NO_PARSER_ERROR;
+    parser->current = 0;
+    parser->file = file;
+
+    return parser;
+}
+
 static void print_depth(int depth) {
     for (int i = 0; i < depth; i++) {
         printf(" ");
@@ -76,12 +95,12 @@ static void print_node(AstNode *node, int depth) {
 
 static char *parser_err_to_str(ParseErr err) {
     switch (err) {
-        case NO_PARSER_ERROR: return "No parser error.";
-        case PARSE_ERR_EXPECTED_EXPRESSION: return "Expected Expression.";
-        case PARSE_ERR_EXPECTED_IDENTIFIER: return "Expected Identifier.";
-        case PARSE_ERR_EXPECTED_SEMICOLON: return "Expected Semicolon.";
-        case PARSE_ERR_VOID_NOT_ALLOWED: return "Void not allowed here.";
-        default: return "UNKNOWN ERROR";
+        case NO_PARSER_ERROR: return "no parser error";
+        case PARSE_ERR_EXPECTED_EXPRESSION: return "expected Expression";
+        case PARSE_ERR_EXPECTED_IDENTIFIER: return "expected Identifier";
+        case PARSE_ERR_EXPECTED_SEMICOLON: return "expected Semicolon";
+        case PARSE_ERR_VOID_NOT_ALLOWED: return "void not allowed here";
+        default: return "unknown error, ummm oops";
     }
 }
 
@@ -93,24 +112,6 @@ void parser_print(Parser *parser) {
         print_node(node, 1);
     }
     printf("\n");
-}
-
-Parser *init_parser(Token *tokens, int debug) {
-    Parser *parser = (Parser *)malloc(sizeof(Parser));
-    if (!parser) {
-        perror("Error allocating parser.");
-        return NULL;
-    }
-
-    parser->node_count = 0;
-    parser->node_capacity = 1;
-    parser->debug = debug;
-    parser->tree = malloc(sizeof(AstNode *) * parser->node_capacity);
-    parser->tokens = tokens;
-    parser->err = NO_PARSER_ERROR;
-    parser->current = 0;
-
-    return parser;
 }
 
 static void free_node(AstNode *node) {
@@ -239,6 +240,21 @@ static inline int match(TokenType type, Parser *parser) {
 static inline void *parser_err(ParseErr err, Parser *parser) {
     parser->err = err;
     return NULL;
+}
+
+static void pretty_error(Parser *parser) {
+    printf("\n%s:%d\n", parser->file, 1);
+    printf("error: %s\n", parser_err_to_str(parser->err));
+
+    // find last non null and non eof token and use that as the error token
+
+    // for (int i = 0; !is_end(parser) && parser->tokens[i].type != TOKEN_EOF; i++) {
+    //     if (parser->tokens[i].line == parser->errToken.line) {
+    //         printf("%s ", parser->tokens[i].lexeme);
+    //     }
+    // }
+
+    // printf("\nerror token: %s", parser->errToken.lexeme);
 }
 
 static int is_literal(Parser *parser) {
@@ -433,11 +449,17 @@ static AstNode *parse_function(Parser *parser) {
     advance(parser);
 
     Token identifier_token = current_token(parser);
-    if (!match(TOKEN_IDENTIFIER, parser)) return NULL;
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+    }
     advance(parser);
 
-    if (!expect(TOKEN_LEFT_PAREN, parser)) return NULL;
-    if (!expect(TOKEN_RIGHT_PAREN, parser)) return NULL;
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
 
     if (match(TOKEN_SEMICOLON, parser)) {
         advance(parser);
@@ -448,7 +470,9 @@ static AstNode *parse_function(Parser *parser) {
         return node;
     }
 
-    if (!expect(TOKEN_LEFT_BRACE, parser)) return NULL;
+    if (!expect(TOKEN_LEFT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
 
     int body_statement_count = 0;
     int body_capacity = 1;
@@ -470,7 +494,7 @@ static AstNode *parse_function(Parser *parser) {
 
     if (!expect(TOKEN_RIGHT_BRACE, parser)) {
         // free some shit here
-        return NULL;
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
 
     return node;
@@ -579,7 +603,8 @@ void parse_ast(Parser *parser) {
     }
 
     if (parser->err != NO_PARSER_ERROR) {
-        printf("%s\n", parser_err_to_str(parser->err));
+        pretty_error(parser);
+        return;
     }
 
     if (parser->debug) parser_print(parser);
