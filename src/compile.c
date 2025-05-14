@@ -29,28 +29,37 @@ void free_compiler(Compiler *c) {
 void put(Compiler *c, const char *format, ...) {
     va_list args;
     va_start(args, format);
+    fprintf(c->file, "  ");
+    vfprintf(c->file, format, args);
+    fprintf(c->file, "\n");
+    va_end(args);
+}
+
+void putf(Compiler *c, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
     vfprintf(c->file, format, args);
     fprintf(c->file, "\n");
     va_end(args);
 }
 
 static inline void sys_call(Compiler *c) {
-    put(c, "  int 0x80");
+    put(c, "int 0x80");
 }
 
 static inline void call(char *func, Compiler *c) {
-    put(c, "  call %s", func);
+    put(c, "call %s", func);
 }
 
 void generate_return(Compiler *c, AstReturn *ret) {
     if (ret->value->type == AST_LITERAL_INT) {
-        put(c, "  mov eax, %d", ret->value->as.lit_int->value); 
+        put(c, "mov eax, %d", ret->value->as.lit_int->value); 
     }
     else if (ret->value->type == AST_LITERAL_CHAR) {
-        put(c, "  mov eax, %d", ret->value->as.lit_int->value); 
+        put(c, "mov eax, %d", ret->value->as.lit_int->value); 
     }
     else if (ret->value->type == AST_CALL_EXPR) {
-        put(c, "  call %s", ret->value->as.call->identifier); 
+        put(c, "call %s", ret->value->as.call->identifier); 
     }
     else if (ret->value->type == AST_BINARY) {
         generate_node(c, ret->value);
@@ -64,22 +73,38 @@ void generate_function(Compiler *c, AstFunctionDeclaration *func) {
         generate_node(c, func->body[i]);
     }
 
-    put(c, "  ret"); 
+    put(c, "ret"); 
 }
 
-void generate_call_expr(Compiler *c, AstCallExpr *call) {
-    put(c, "  call %s", call->identifier); 
+void generate_call_expr(Compiler *c, AstCallExpr *call_expr) {
+    call(call_expr->identifier, c);
 }
 
 void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
     if (binary->op.type == TOKEN_PLUS) {
         generate_node(c, binary->left);
-        put(c, "  push rax");
-
+        put(c, "push rax");
         generate_node(c, binary->right);
-        put(c, "  pop rbx");
 
-        put(c, "  add rax, rbx");
+        put(c, "pop rbx");
+        put(c, "add rax, rbx");
+    }
+    else if (binary->op.type == TOKEN_MINUS) {
+        generate_node(c, binary->left);
+        put(c, "push rax");
+        generate_node(c, binary->right);
+
+        put(c, "mov rbx, rax");
+        put(c, "pop rax");
+        put(c, "sub rax, rbx");
+    }
+    else if (binary->op.type == TOKEN_STAR) {
+        generate_node(c, binary->left);
+        put(c, "push rax");
+        generate_node(c, binary->right);
+
+        put(c, "pop rbx");
+        put(c, "imul rax, rbx");
     }
     else {
         fprintf(stderr, "Unsupported binary operator.\n");
@@ -87,7 +112,7 @@ void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
 }
 
 void generate_lit_int(Compiler *c, AstLiteralInt *lit) {
-    put(c, "  mov rax, %d", lit->value);
+    put(c, "mov rax, %d", lit->value);
 }
 
 void generate_node(Compiler *c, AstNode *node) {
@@ -109,14 +134,14 @@ void generate_node(Compiler *c, AstNode *node) {
 }
 
 void asm_init(Compiler *c) {
-    put(c, "section .data");
-    put(c, "section .text");
+    putf(c, "section .data");
+    putf(c, "section .text");
     put(c, "global _start\n");
 
-    put(c, "_start:");
+    putf(c, "_start:");
     call("main", c);
-    put(c, "  mov ebx, eax");
-    put(c, "  mov eax, 1");
+    put(c, "mov ebx, eax");
+    put(c, "mov eax, 1");
     sys_call(c);
 }
 
@@ -166,4 +191,6 @@ void compile(Compiler *c) {
         fprintf(stderr, "Linking failed.\n");
     }
     system("./out/main");
+    system("rm out/out.o");
+    // system("rm out/out.asm");
 }
