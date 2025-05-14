@@ -8,7 +8,7 @@
 
 void generate_node(Compiler *c, AstNode *node);
 
-Compiler *init_compiler(AstNode **tree, int count) {
+Compiler *init_compiler(AstNode **tree, int count, char *exe, int emitAsm, int emitObj) {
     Compiler *c = malloc(sizeof(Compiler));
     if (!c) {
         perror("Error allocating compiler.");
@@ -17,6 +17,9 @@ Compiler *init_compiler(AstNode **tree, int count) {
     
     c->tree = tree;
     c->node_count = count;
+    c->exe = exe;
+    c->emitAsm = emitAsm;
+    c->emitObj = emitObj;
 
     return c;
 }
@@ -160,11 +163,14 @@ int check_main(Compiler *c) {
 }
 
 void compile(Compiler *c) {
+    const char* asmFile = "out.asm";
+    const char* objectFile = "out.o";
+
     struct stat st = {0};
     if (stat("out/", &st) == -1) {
         mkdir("out/", 0777);
     }
-    FILE *fptr = fopen("out/out.asm", "w");
+    FILE *fptr = fopen(asmFile, "w");
     if (!fptr) {
         perror("Error opening file");
         return;
@@ -184,13 +190,25 @@ void compile(Compiler *c) {
     }
 
     fclose(c->file);
-    if (system("nasm -f elf64 out/out.asm") != 0) {
+
+    char command[512];
+    snprintf(command, sizeof(command), "nasm -f elf64 %s", asmFile);
+    if (system(command) != 0) {
         fprintf(stderr, "NASM assembly failed.\n");
     }
-    if (system("ld out/out.o -o out/main") != 0) {
+    
+    snprintf(command, sizeof(command), "ld %s -o %s", objectFile, c->exe);
+    if (system(command) != 0) {
         fprintf(stderr, "Linking failed.\n");
     }
-    system("./out/main");
-    system("rm out/out.o");
-    // system("rm out/out.asm");
+
+    if (!c->emitObj) {
+        snprintf(command, sizeof(command), "rm %s", objectFile);
+        system(command);
+    }
+
+    if (!c->emitAsm) {
+        snprintf(command, sizeof(command), "rm %s", asmFile);
+        system(command);
+    }
 }

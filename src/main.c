@@ -9,29 +9,63 @@
 #include "ppd.h"
 #include "version.h"
 
-#define LEXER_DEBUG 1
-#define PARSER_DEBUG 1
+#define match(long, short) strcmp(argv[i], long) == 0 || strcmp(argv[i], short) == 0
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
-    printf("Usage: %s [ *.c ... ]\n", argv[0]);
+    printf("Usage: %s [ *.c ... ] -o <out>\n", argv[0]);
     return 1;
-  }
-  
-  if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
-      printf("Usage: %s [ *.c ... ]\n", argv[0]);
-      printf("Options:\n");
-      printf("  --version | -v   Show compiler version\n");
-      printf("  --help    | -h   Show this message\n");
-      return 0;
-  }
-
-  if (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0) {
-    printf("%s version %s\n", COMPILER_NAME, VERSION_STRING);
-    return 0;
   }
 
   char *file_path = argv[1];
+  char *exe_path = NULL;
+
+  int emitAsm = 0;
+  int emitObj = 0;
+  int debug = 0;
+
+  for (int i = 1; i < argc; i++) {
+    if (match("--help", "-h")) {
+      printf("Usage: %s [ *.c ... ] -o <out> [ flags ]\n", argv[i]);
+      printf("Options:\n");
+      printf("  --version       | -v    Show compiler version\n");
+      printf("  --help          | -h    Show this message\n");
+      printf("  --output <file> | -o    Specify an output file\n");
+      printf("  --emitasm       | -ea   Tells the compiler not to delete the generated .asm file\n");
+      printf("  --emitobj       | -eo   Tells the compiler not to delete the generated .o file\n");
+      printf("  --debug         | -d    Prints the compiler debug output\n");
+      return 0;
+    }
+    else if (match("--version", "-v")) {
+      printf("%s version %s\n", COMPILER_NAME, VERSION_STRING);
+      return 0;
+    }
+    else if (match("--output", "-o")) {
+      if (i + 1 < argc) {
+        exe_path = argv[++i];
+      } else {
+        printf("Expected output file after '%s'\n", argv[i]);
+        return 1;
+      }
+    }
+    else if (match("--emitasm", "-ea")) {
+      emitAsm = 1;
+    }
+    else if (match("--emitobj", "-eo")) {
+      emitObj = 1;
+    }
+    else if (match("--debug", "-d")) {
+      debug = 1;
+    }
+    else {
+      file_path = argv[i]; 
+    }
+  }
+
+  if (!exe_path) {
+    printf("Output directory was not specified.\n");
+    return 1;
+  }
 
   FILE *fptr = fopen(file_path, "r");
   if (!fptr) {
@@ -58,7 +92,7 @@ int main(int argc, char *argv[]) {
   char *preprocessed_source = preprocess(source);
   free(source);
 
-  Lexer *lexer = init_lexer(preprocessed_source, LEXER_DEBUG);
+  Lexer *lexer = init_lexer(preprocessed_source, debug);
   free(preprocessed_source);
 
   tokenize(lexer);
@@ -67,7 +101,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  Parser *parser = init_parser(lexer->tokens, PARSER_DEBUG);
+  Parser *parser = init_parser(lexer->tokens, debug);
   parse_ast(parser);
 
   free_lexer(lexer);
@@ -80,7 +114,7 @@ int main(int argc, char *argv[]) {
   // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
   // analyze_ast(analyzer);
 
-  Compiler *compiler = init_compiler(parser->tree, parser->node_count);
+  Compiler *compiler = init_compiler(parser->tree, parser->node_count, exe_path, emitAsm, emitObj);
   compile(compiler);
 
   free_parser(parser);
