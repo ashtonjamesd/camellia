@@ -8,6 +8,7 @@
 #include "analyze.h"
 #include "ppd.h"
 #include "version.h"
+#include "camc.h"
 
 #define match(long_arg, short_arg) strcmp(argv[i], long_arg) == 0 || strcmp(argv[i], short_arg) == 0
 
@@ -67,13 +68,16 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (match("init", "")) {
-
+      camc_init(argc, argv);
+      return 0;
     }
     else if (match("build", "")) {
-
+      camc_build(argc, argv);
+      return 0;
     }
     else if (match("run", "")) {
-
+      camc_run(argc, argv);
+      return 0;
     }
     else if (match("--output", "-o")) {
       if (i + 1 < argc) {
