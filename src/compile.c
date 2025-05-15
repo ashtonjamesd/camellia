@@ -74,6 +74,10 @@ static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
 
     for (int i = 0; i < func->count; i++) {
         generate_node(c, func->body[i]);
+
+        if (func->body[i]->type == AST_RETURN) {
+            break;
+        }
     }
 
     put(c, "ret"); 

@@ -79,7 +79,6 @@ int main(int argc, char *argv[]) {
 
   char *source = (char *)malloc(sz + 1);
   if (!source) {
-    printf("Allocation failed for source.");
     fprintf(stderr, "Allocation failed for source.");
     return 1;
   }
