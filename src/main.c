@@ -43,9 +43,13 @@ int main(int argc, char *argv[]) {
   // camc add
   // camc remove
   // camc update
+  //
+  // camc bump M // bump major version in camc.yaml
+  // camc bump m // bump minor version in camc.yaml
+  // camc bump p // bump patch version in camc.yaml
 
   char *file_path = argv[1];
-  char *exe_path = NULL;
+  char *exe_path = "out";
 
   int emitAsm = 0;
   int emitObj = 0;
@@ -68,24 +72,16 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (match("init", "")) {
-      camc_init(argc, argv);
-      return 0;
+      return camc_init(argc, argv);
     }
     else if (match("build", "")) {
-      camc_build(argc, argv);
-      return 0;
+      return camc_build(argc, argv);
     }
     else if (match("run", "")) {
-      camc_run(argc, argv);
-      return 0;
+      return camc_run(argc, argv);
     }
-    else if (match("--output", "-o")) {
-      if (i + 1 < argc) {
-        exe_path = argv[++i];
-      } else {
-        printf("Expected output file after '%s'\n", argv[i]);
-        return 1;
-      }
+    else if (match("bump", "")) {
+      return camc_bump(argc, argv);
     }
     else if (match("--emitasm", "-ea")) {
       emitAsm = 1;
