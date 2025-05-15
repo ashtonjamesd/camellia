@@ -12,6 +12,8 @@ typedef enum {
     AST_IDENTIFIER,
     AST_BINARY,
     AST_CALL_EXPR,
+    AST_FUNCTION_PARAMETER,
+    AST_INLINE_ASM_BLOCK
 } AstType;
 
 typedef enum {
@@ -46,10 +48,18 @@ typedef struct {
 } AstIdentifier;
 
 typedef struct {
-    AstDataType  returnType;
-    char        *identifier;
-    AstNode    **body;
-    int          count;
+    char *name;
+    AstDataType type;
+    int constant;
+} AstFunctionParameter;
+
+typedef struct {
+    AstDataType            returnType;
+    char                  *identifier;
+    AstNode              **body;
+    int                    body_count;
+    int                    params_count;
+    AstFunctionParameter **params;
 } AstFunctionDeclaration;
 
 typedef struct {
@@ -61,6 +71,11 @@ typedef struct {
 typedef struct {
     char *identifier;
 } AstCallExpr;
+
+typedef struct {
+    char **lines;
+    int line_count;
+} AstInlineAsmBlock;
 
 struct AstNode {
     AstType type;
@@ -74,11 +89,14 @@ struct AstNode {
         AstIdentifier          *ident;
         AstBinaryExpr          *binary;
         AstCallExpr            *call;
+        AstFunctionParameter   *param;
+        AstInlineAsmBlock      *asm_inl;
     } as;
 };
 
 typedef enum {
     NO_PARSER_ERROR,
+    PARSE_ERR_OUT_OF_MEMORY,
     PARSE_ERR_EXPECTED_EXPRESSION,
     PARSE_ERR_EXPECTED_IDENTIFIER,
     PARSE_ERR_EXPECTED_SEMICOLON,

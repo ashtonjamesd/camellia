@@ -33,6 +33,8 @@ static SymbolToken KEYWORDS[] = {
     {"case", TOKEN_CASE},
     {"default", TOKEN_DEFAULT},
     {"void", TOKEN_VOID},
+    {"const", TOKEN_CONST},
+    {"asm", TOKEN_ASM},
 };
 
 static SymbolToken SYMBOLS[] = {

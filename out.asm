@@ -8,10 +8,11 @@ _start:
   mov eax, 1
   int 0x80
 
-main:
-  call x
+write:
+  mov rax, 2
+  mov rax, 5
   ret
 
-x:
-  mov eax, 5
+main:
+  mov eax, 0
   ret

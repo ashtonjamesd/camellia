@@ -32,7 +32,7 @@ void free_analyzer(Analyzer *analyzer) {
 }
 
 void analyze_function(AstFunctionDeclaration *func, Analyzer *analyzer) {
-    for (int i = 0; i < func->count; i++) {
+    for (int i = 0; i < func->body_count; i++) {
         analyze_node(func->body[i], analyzer);
     }
 }

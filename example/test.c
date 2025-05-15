@@ -1,10 +1,6 @@
 void write(char c) {
     asm(
-        "mov rax, 2"
-    );
-
-    asm(
-        "mov rax, 5"
+        
     );
 }
 

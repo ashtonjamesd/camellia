@@ -72,9 +72,10 @@ static void generate_return(Compiler *c, AstReturn *ret) {
 static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     fprintf(c->file, "\n%s:\n", func->identifier);
 
-    for (int i = 0; i < func->count; i++) {
+    for (int i = 0; i < func->body_count; i++) {
         generate_node(c, func->body[i]);
 
+        // skips dead code
         if (func->body[i]->type == AST_RETURN) {
             break;
         }
@@ -122,6 +123,12 @@ static void generate_lit_int(Compiler *c, AstLiteralInt *lit) {
     put(c, "mov rax, %d", lit->value);
 }
 
+static void generate_inline_asm(Compiler *c, AstInlineAsmBlock *asm_inl) {
+    for (int i = 0; i < asm_inl->line_count; i++) {
+        put(c, "%s", asm_inl->lines[i]);
+    }
+}
+
 static void generate_node(Compiler *c, AstNode *node) {
     if (node->type == AST_FUNCTION) {
         generate_function(c, node->as.func);
@@ -137,6 +144,9 @@ static void generate_node(Compiler *c, AstNode *node) {
     }
     else if (node->type == AST_LITERAL_INT) {
         generate_lit_int(c, node->as.lit_int);
+    }
+    else if (node->type == AST_INLINE_ASM_BLOCK) {
+        generate_inline_asm(c, node->as.asm_inl);
     }
 }
 

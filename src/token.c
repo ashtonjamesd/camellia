@@ -58,6 +58,8 @@ char *token_type_to_str(TokenType type) {
         case TOKEN_IFNDEF: return "IFNDEF";
         case TOKEN_ELIF: return "ELIF";
         case TOKEN_ENDIF: return "ENDIF";
+        case TOKEN_CONST: return "CONST";
+        case TOKEN_ASM: return "ASM";
         default: return "UNKNOWN";
     };
 }

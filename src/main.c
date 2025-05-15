@@ -17,6 +17,32 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  // camc init
+  //  initializes a c project in the current directory
+  //  creates:
+  //    - /src/main.c (hello, world)
+  //    - /build
+  //
+  // camc build
+  // camc run
+  //
+  // project file:
+  //    camc.yaml
+  //
+  //    project: "camellia"
+  //    version: "0.0.0"
+  //    packages: []
+  //
+  // camc publish
+  //    publishes the current .git dir as a c package
+  // 
+  // camc package
+  //    creates a new c package project
+  //
+  // camc add
+  // camc remove
+  // camc update
+
   char *file_path = argv[1];
   char *exe_path = NULL;
 
@@ -39,6 +65,15 @@ int main(int argc, char *argv[]) {
     else if (match("--version", "-v")) {
       printf("%s version %s\n", COMPILER_NAME, VERSION_STRING);
       return 0;
+    }
+    else if (match("init", "")) {
+
+    }
+    else if (match("build", "")) {
+
+    }
+    else if (match("run", "")) {
+
     }
     else if (match("--output", "-o")) {
       if (i + 1 < argc) {

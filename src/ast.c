@@ -52,6 +52,13 @@ static void print_node(AstNode *node, int depth) {
             print_node(node->as.var_dec->value, depth);
         }
     }
+    else if (node->type == AST_INLINE_ASM_BLOCK) {
+        printf("INLINE ASM (%d):\n", node->as.asm_inl->line_count);
+        for (int i = 0; i < node->as.asm_inl->line_count; i++) {
+            print_depth(depth + 2);
+            printf("%s\n", node->as.asm_inl->lines[i]);
+        }
+    }
     else if (node->type == AST_FUNCTION) {
         printf("FUNCTION:\n");
 
@@ -61,9 +68,20 @@ static void print_node(AstNode *node, int depth) {
         print_depth(depth + 2);
         printf("RETURN TYPE: %s\n", data_type_to_str(node->as.func->returnType));
         print_depth(depth + 2);
-        printf("Body (%d):\n", node->as.func->count);
-        for (int i = 0; i < node->as.func->count; i++) {
+        printf("Body (%d):\n", node->as.func->body_count);
+        for (int i = 0; i < node->as.func->body_count; i++) {
             print_node(node->as.func->body[i], depth + 4);
+        }
+
+        print_depth(depth + 2);
+        printf("Params (%d):\n", node->as.func->params_count);
+        for (int i = 0; i < node->as.func->params_count; i++) {
+            print_depth(depth + 4);
+            printf("ID: %s\n", node->as.func->params[i]->name);
+            print_depth(depth + 4);
+            printf("TYPE: %s\n", data_type_to_str(node->as.func->params[i]->type));
+            print_depth(depth + 4);
+            printf("CONST: %d\n\n", node->as.func->params[i]->constant);
         }
     }
     else if (node->type == AST_RETURN) {
@@ -103,6 +121,7 @@ static char *parser_err_to_str(ParseErr err) {
         case PARSE_ERR_EXPECTED_SEMICOLON: return "expected semicolon";
         case PARSE_ERR_VOID_NOT_ALLOWED: return "void not allowed here";
         case PARSE_ERR_INVALID_SYNTAX: return "invalid syntax";
+        case PARSE_ERR_OUT_OF_MEMORY: return "out of memory";
         default: return "unknown error, ummm oops";
     }
 }
@@ -136,7 +155,7 @@ static void free_node(AstNode *node) {
     }
     else if (node->type == AST_FUNCTION) {
         free(node->as.func->identifier);
-        for (int i = 0; i < node->as.func->count; i++) {
+        for (int i = 0; i < node->as.func->body_count; i++) {
             free_node(node->as.func->body[i]);
         }
         free(node->as.func->body);
@@ -163,6 +182,14 @@ static void free_node(AstNode *node) {
         free(node->as.call->identifier);
         free(node->as.call);
         free(node);
+    }
+    else if (node->type == AST_INLINE_ASM_BLOCK) {
+        for (size_t i = 0; i < node->as.asm_inl->line_count; i++) {
+            // free(node->as.asm_inl->lines[i]);
+        }
+
+        // free(node->as.asm_inl);
+        // free(node);
     }
     else {
         printf("Unknown AstType in 'free_node': '%s'\n", ast_type_to_str(node->type));
@@ -211,6 +238,9 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_CALL_EXPR) {
         node->as.call = (AstCallExpr *)value;
+    }
+    else if (type == AST_INLINE_ASM_BLOCK) {
+        node->as.asm_inl = (AstInlineAsmBlock *)value;
     }
     else {
         printf("Unknown AstType in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -476,12 +506,14 @@ static AstNode *parse_var_dec(Parser *parser) {
     return node;
 }
 
-static AstFunctionDeclaration *init_function_node(AstNode **body, int count, char *identifier, AstDataType returnType) {
+static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count, char *identifier, AstDataType returnType, AstFunctionParameter **params, int params_count) {
     AstFunctionDeclaration *func = (AstFunctionDeclaration *)malloc(sizeof(AstFunctionDeclaration));
     func->body = body;
-    func->count = count;
+    func->body_count = body_count;
     func->identifier = strdup(identifier);
     func->returnType = returnType;
+    func->params = params;
+    func->params_count = params_count;
 
     return func;
 }
@@ -496,10 +528,25 @@ static AstDataType token_to_ast_data_type(Token token) {
     return AST_TYPE_INVALID;
 }
 
+static int is_valid_type(Token token) {
+    return token_to_ast_data_type(token) != AST_TYPE_INVALID;
+}
+
+static AstFunctionParameter *init_func_parameter(char *id, AstDataType type, int constant) {
+    AstFunctionParameter *param = malloc(sizeof(AstFunctionParameter));
+    param->name = strdup(id);
+    param->type = type;
+    param->constant = constant;
+
+    return param;
+}
+
 static AstNode *parse_function(Parser *parser) {
     Token return_type_token = current_token(parser);
     AstDataType type = token_to_ast_data_type(return_type_token);
-    if (type == AST_TYPE_INVALID) return NULL;
+    if (type == AST_TYPE_INVALID) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
 
     advance(parser);
 
@@ -512,6 +559,48 @@ static AstNode *parse_function(Parser *parser) {
     if (!expect(TOKEN_LEFT_PAREN, parser)) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
+
+    AstFunctionParameter **params = malloc(sizeof(AstFunctionParameter *));
+    if (!params) {
+        return NULL;
+    }
+
+    int capacity = 1;
+    int params_count = 0;
+
+    recede(parser);
+    do {
+        advance(parser);
+
+        if (match(TOKEN_RIGHT_PAREN, parser)) break;
+
+        int constant = 0;
+        if (match(TOKEN_CONST, parser)) {
+            advance(parser);
+            constant = 1;
+        }
+
+        Token type = current_token(parser);
+        if (!is_valid_type(type)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+        advance(parser);
+
+        Token id = current_token(parser);
+        if (!match(TOKEN_IDENTIFIER, parser)) {
+            return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+        }
+        advance(parser);
+
+        AstFunctionParameter *param = init_func_parameter(id.lexeme, token_to_ast_data_type(type), constant);
+        if (params_count >= capacity) {
+            capacity *= 2;
+            params = realloc(params, sizeof(AstFunctionParameter *) * capacity);
+        }
+        params[params_count++] = param;
+
+    } while (match(TOKEN_COMMA, parser));
+
     if (!expect(TOKEN_RIGHT_PAREN, parser)) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
@@ -519,7 +608,7 @@ static AstNode *parse_function(Parser *parser) {
     if (match(TOKEN_SEMICOLON, parser)) {
         advance(parser);
 
-        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, type);
+        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, type, params, params_count);
         AstNode *node = init_node(func, AST_FUNCTION);
 
         return node;
@@ -544,7 +633,7 @@ static AstNode *parse_function(Parser *parser) {
         body[body_statement_count++] = node;
     }
 
-    AstFunctionDeclaration *func = init_function_node(body, body_statement_count, identifier_token.lexeme, type);
+    AstFunctionDeclaration *func = init_function_node(body, body_statement_count, identifier_token.lexeme, type, params, params_count);
     AstNode *node = init_node(func, AST_FUNCTION);
 
     if (!expect(TOKEN_RIGHT_BRACE, parser)) {
@@ -576,6 +665,69 @@ static AstNode *parse_return(Parser *parser) {
 
     AstReturn *ret = init_return(return_expr);
     AstNode *node = init_node(ret, AST_RETURN);
+
+    return node;
+}
+
+static AstInlineAsmBlock *init_inline_asm_node(char **asm_lines, int line_count) {
+    AstInlineAsmBlock *asm_inl = malloc(sizeof(AstInlineAsmBlock));
+    asm_inl->lines = asm_lines;
+    asm_inl->line_count = line_count;
+
+    return asm_inl;
+}
+
+static AstNode *parse_inline_asm(Parser *parser) {
+    advance(parser);
+    
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    int capacity = 1;
+    int count = 0;
+    char **asm_lines = malloc(sizeof(char *) * capacity);
+
+    recede(parser);
+    do {
+        advance(parser);
+        
+        if (!match(TOKEN_STRING_LITERAL, parser)) {
+            free(asm_lines);
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        Token str_token = current_token(parser);
+        
+        if (count >= capacity) {
+            capacity *= 2;
+            char **new_lines = realloc(asm_lines, sizeof(char *) * capacity);
+            if (!new_lines) {
+                free(asm_lines);
+                return parser_err(PARSE_ERR_OUT_OF_MEMORY, parser);
+            }
+            asm_lines = new_lines;
+        }
+
+        asm_lines[count++] = strdup(str_token.lexeme);
+        advance(parser);
+
+    } while (match(TOKEN_COMMA, parser));
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        for (size_t i = 0; i < count; i++) free(asm_lines[i]);
+        free(asm_lines);
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        for (size_t i = 0; i < count; i++) free(asm_lines[i]);
+        free(asm_lines);
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstInlineAsmBlock *asm_inl = init_inline_asm_node(asm_lines, count);
+    AstNode *node = init_node(asm_inl, AST_INLINE_ASM_BLOCK);
 
     return node;
 }
@@ -620,11 +772,14 @@ static AstNode *parse_type_statement(Parser *parser) {
 }
 
 static AstNode *parse_statement(Parser *parser) {
-    if (token_to_ast_data_type(current_token(parser)) != AST_TYPE_INVALID) {
+    if (is_valid_type(current_token(parser))) {
         return parse_type_statement(parser);
     }
     else if (match(TOKEN_RETURN, parser)) {
         return parse_return(parser);
+    }
+    else if (match(TOKEN_ASM, parser)) {
+        return parse_inline_asm(parser);
     }
     else {
         AstNode *expr = parse_expression(parser);
