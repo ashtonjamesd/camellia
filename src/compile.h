@@ -4,6 +4,17 @@
 #include "ast.h"
 
 typedef struct {
+    char *name;
+    int offset;
+} Symbol;
+
+typedef struct {
+    Symbol *symbols;
+    int count;
+    int capacity;
+} SymbolTable;
+
+typedef struct {
     AstNode **tree;
     int       node_count;
     FILE     *file;
@@ -16,6 +27,8 @@ typedef struct {
 
     // represents the name of the .exe produced
     char     *exe;
+
+    SymbolTable *symbol_table;
 } Compiler;
 
 extern Compiler *init_compiler(AstNode **tree, int count, char *exe, int emitAsm, int emitObj);

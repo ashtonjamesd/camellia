@@ -36,81 +36,113 @@ static void print_depth(int depth) {
 static void print_node(AstNode *node, int depth) {
     print_depth(depth);
 
-    if (node->type == AST_LITERAL_INT) {
-        printf("LITERAL INT: %d", node->as.lit_int->value);
-    }
-    else if (node->type == AST_LITERAL_CHAR) {
-        printf("LITERAL CHAR: %c", node->as.lit_char->value);
-    }
-    else if (node->type == AST_VARIABLE_DECLARATION) {
-        printf("VARIABLE DECLARATION:\n");
-    
-        print_depth(depth);
-        printf("IDENTIFIER: %s\n", node->as.var_dec->identifier);
-        
-        if (node->as.var_dec->value) {
-            print_node(node->as.var_dec->value, depth);
-        }
-    }
-    else if (node->type == AST_INLINE_ASM_BLOCK) {
-        printf("INLINE ASM (%d):\n", node->as.asm_inl->line_count);
-        for (int i = 0; i < node->as.asm_inl->line_count; i++) {
-            print_depth(depth + 2);
-            printf("%s\n", node->as.asm_inl->lines[i]);
-        }
-    }
-    else if (node->type == AST_FUNCTION) {
-        printf("FUNCTION:\n");
+    switch (node->type) {
+        case AST_LITERAL_INT:
+            printf("LITERAL INT: %d\n", node->as.lit_int->value);
+            break;
 
-        print_depth(depth + 2);
-        printf("IDENTIFIER: %s\n", node->as.func->identifier);
-        
-        print_depth(depth + 2);
-        printf("RETURN TYPE: %s\n", data_type_to_str(node->as.func->returnType));
-        print_depth(depth + 2);
-        printf("Body (%d):\n", node->as.func->body_count);
-        for (int i = 0; i < node->as.func->body_count; i++) {
-            print_node(node->as.func->body[i], depth + 4);
-        }
+        case AST_LITERAL_CHAR:
+            printf("LITERAL CHAR: '%c'\n", node->as.lit_char->value);
+            break;
 
-        print_depth(depth + 2);
-        printf("Params (%d):\n", node->as.func->params_count);
-        for (int i = 0; i < node->as.func->params_count; i++) {
-            print_depth(depth + 4);
-            printf("ID: %s\n", node->as.func->params[i]->name);
-            print_depth(depth + 4);
-            printf("TYPE: %s\n", data_type_to_str(node->as.func->params[i]->type));
-            print_depth(depth + 4);
-            printf("CONST: %d\n\n", node->as.func->params[i]->constant);
-        }
-    }
-    else if (node->type == AST_RETURN) {
-        printf("RETURN: \n");
-        print_node(node->as.ret->value, depth + 1);
-    }
-    else if (node->type == AST_BINARY) {
-        printf("BINARY EXPR:\n");
-        print_node(node->as.binary->left, depth + 2);
+        case AST_VARIABLE_DECLARATION:
+            printf("VARIABLE DECLARATION:\n");
+            print_depth(depth + 1);
+            printf("IDENTIFIER: %s\n", node->as.var_dec->identifier);
+            if (node->as.var_dec->value) {
+                print_depth(depth + 1);
+                printf("VALUE:\n");
+                print_node(node->as.var_dec->value, depth + 2);
+            }
+            break;
 
-        print_depth(depth + 2);
-        printf("OP: %s\n", node->as.binary->op.lexeme);
+        case AST_INLINE_ASM_BLOCK:
+            printf("INLINE ASM (%d lines):\n", node->as.asm_inl->line_count);
+            for (int i = 0; i < node->as.asm_inl->line_count; i++) {
+                print_depth(depth + 1);
+                printf("%s\n", node->as.asm_inl->lines[i]);
+            }
+            break;
 
-        print_node(node->as.binary->right, depth + 2);
+        case AST_FUNCTION:
+            printf("FUNCTION:\n");
+            print_depth(depth + 1);
+            printf("IDENTIFIER: %s\n", node->as.func->identifier);
+            print_depth(depth + 1);
+            printf("RETURN TYPE: %s\n", data_type_to_str(node->as.func->returnType));
+
+            print_depth(depth + 1);
+            printf("PARAMETERS (%d):\n", node->as.func->params_count);
+            for (int i = 0; i < node->as.func->params_count; i++) {
+                print_depth(depth + 2);
+                printf("ID: %s\n", node->as.func->params[i]->name);
+                print_depth(depth + 2);
+                printf("TYPE: %s\n", data_type_to_str(node->as.func->params[i]->type));
+                print_depth(depth + 2);
+                printf("CONST: %d\n", node->as.func->params[i]->constant);
+            }
+
+            print_depth(depth + 1);
+            printf("BODY (%d):\n", node->as.func->body_count);
+            for (int i = 0; i < node->as.func->body_count; i++) {
+                print_node(node->as.func->body[i], depth + 2);
+            }
+            break;
+
+        case AST_RETURN:
+            printf("RETURN:\n");
+            print_node(node->as.ret->value, depth + 1);
+            break;
+
+        case AST_BINARY:
+            printf("BINARY EXPRESSION:\n");
+            print_depth(depth + 1);
+            printf("LEFT:\n");
+            print_node(node->as.binary->left, depth + 2);
+            print_depth(depth + 1);
+            printf("OPERATOR: %s\n", node->as.binary->op.lexeme);
+            print_depth(depth + 1);
+            printf("RIGHT:\n");
+            print_node(node->as.binary->right, depth + 2);
+            break;
+
+        case AST_IDENTIFIER:
+            printf("IDENTIFIER: %s\n", node->as.ident->name);
+            break;
+
+        case AST_CALL_EXPR:
+            printf("CALL EXPRESSION:\n");
+            print_depth(depth + 1);
+            printf("FUNCTION: %s\n", node->as.call->identifier);
+            break;
+
+        case AST_ASSIGNMENT:
+            printf("ASSIGNMENT:\n");
+            print_depth(depth + 1);
+            printf("IDENTIFIER: %s\n", node->as.assign->identifier);
+            print_depth(depth + 1);
+            printf("VALUE:\n");
+            print_node(node->as.assign->value, depth + 2);
+            break;
+
+        case AST_IF_STATEMENT:
+            printf("IF STATEMENT:\n");
+            for (int i = 0; i < node->as.iff->body_count; i++) {
+                print_node(node->as.iff->body[i], depth + 1);
+            }
+            if (node->as.iff->else_body) {
+                print_depth(depth);
+                printf("ELSE:\n");
+                for (int i = 0; i < node->as.iff->else_body_count; i++) {
+                    print_node(node->as.iff->else_body[i], depth + 1);
+                }
+            }
+            break;
+
+        default:
+            printf("UNKNOWN NODE TYPE: %d\n", node->type);
+            break;
     }
-    else if (node->type == AST_IDENTIFIER) {
-        printf("IDENTIFIER:\n");
-        print_depth(depth + 2);
-        printf("VALUE: %s\n", node->as.ident->name);
-    }
-    else if (node->type == AST_CALL_EXPR) {
-        printf("CALL EXPR:\n");
-        print_depth(depth + 2);
-        printf("FUNC: %s\n", node->as.call->identifier);
-    }
-    else {
-        printf("UNKNOWN NODE TYPE: %d", node->type);
-    }
-    printf("\n");
 }
 
 static char *parser_err_to_str(ParseErr err) {
@@ -185,11 +217,25 @@ static void free_node(AstNode *node) {
     }
     else if (node->type == AST_INLINE_ASM_BLOCK) {
         for (size_t i = 0; i < node->as.asm_inl->line_count; i++) {
-            // free(node->as.asm_inl->lines[i]);
+            free(node->as.asm_inl->lines[i]);
         }
 
-        // free(node->as.asm_inl);
-        // free(node);
+        free(node->as.asm_inl);
+        free(node);
+    }
+    else if (node->type == AST_ASSIGNMENT) {
+        free_node(node->as.assign->value);
+        free(node->as.assign->identifier);
+        free(node->as.assign);
+        free(node);
+    }
+    else if (node->type == AST_IF_STATEMENT) {
+        for (int i = 0; i < node->as.iff->body_count; i++) {
+            free_node(node->as.iff->body[i]);
+        }
+
+        free(node->as.iff);
+        free(node);
     }
     else {
         printf("Unknown AstType in 'free_node': '%s'\n", ast_type_to_str(node->type));
@@ -241,6 +287,12 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_INLINE_ASM_BLOCK) {
         node->as.asm_inl = (AstInlineAsmBlock *)value;
+    }
+    else if (type == AST_ASSIGNMENT) {
+        node->as.assign = (AstAssignment *)value;
+    }
+    else if (type == AST_IF_STATEMENT) {
+        node->as.iff = (AstIfStatement *)value;
     }
     else {
         printf("Unknown AstType in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -342,14 +394,15 @@ static void pretty_error(Parser *parser) {
 }
 
 
-static int is_literal(Parser *parser) {
+static int is_literal_or_ident(Parser *parser) {
     return match(TOKEN_INTEGER_LITERAL, parser)
         || match(TOKEN_CHAR_LITERAL, parser)
         || match(TOKEN_FLOAT_LITERAL, parser)
         || match(TOKEN_OCTAL_LITERAL, parser)
         || match(TOKEN_BINARY_LITERAL, parser)
         || match(TOKEN_STRING_LITERAL, parser)
-        || match(TOKEN_HEX_LITERAL, parser);
+        || match(TOKEN_HEX_LITERAL, parser)
+        || match(TOKEN_IDENTIFIER, parser);
 }
 
 static inline int expect(TokenType type, Parser *parser) {
@@ -486,7 +539,7 @@ static AstNode *parse_var_dec(Parser *parser) {
     if (!expect(TOKEN_SINGLE_EQUALS, parser)) {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
-    if (!is_literal(parser)) {
+    if (!is_literal_or_ident(parser)) {
         return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
     }
 
@@ -771,6 +824,135 @@ static AstNode *parse_type_statement(Parser *parser) {
     }
 }
 
+static AstNode *parse_empty_expression(Parser *parser) {
+    AstNode *expr = parse_expression(parser);
+    if (!expr) return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        free_node(expr);
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    return expr;
+}
+
+static AstAssignment *init_assignment(char *identifier, AstNode *value) {
+    AstAssignment *assign = malloc(sizeof(AstAssignment));
+    assign->identifier = strdup(identifier);
+    assign->value = value;
+
+    return assign;
+}
+
+static AstNode *parse_assignment(Parser *parser) {
+    Token id = current_token(parser);
+    advance(parser);
+
+    if (!expect(TOKEN_SINGLE_EQUALS, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *expr = parse_expression(parser);
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstAssignment *assign = init_assignment(id.lexeme, expr);
+    AstNode *node = init_node(assign, AST_ASSIGNMENT);
+
+    return node;
+}
+
+static AstIfStatement *init_if_statement(AstNode **body, AstNode **else_body, AstNode *condition, int body_count, int else_body_count) {
+    AstIfStatement *iff = malloc(sizeof(AstIfStatement));
+    iff->condition = condition;
+    iff->body = body;
+    iff->body_count = body_count;
+    iff->else_body = else_body;
+    iff->else_body_count = else_body_count;
+
+    return iff;
+}
+
+static AstNode *parse_if(Parser *parser) {
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *expr = parse_expression(parser);
+    if (!expr) {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_LEFT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    int body_count = 0;
+    int body_capacity = 1;
+    AstNode **body = malloc(sizeof(AstNode *));
+
+    do {
+        if (match(TOKEN_RIGHT_BRACE, parser)) break;
+        AstNode *statement = parse_statement(parser);
+
+        if (body_count >= body_capacity) {
+            body_capacity *= 2;
+            body = realloc(body, body_capacity * sizeof(AstNode *));
+        }
+        body[body_count++] = statement;
+
+    } while (!match(TOKEN_RIGHT_BRACE, parser));
+
+    if (!expect(TOKEN_RIGHT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    int else_body_count = 0;
+    int else_body_capacity = 1;
+    AstNode **else_body = malloc(sizeof(AstNode *));
+
+    int has_else = 0;
+
+    if (match(TOKEN_ELSE, parser)) {
+        has_else = 1;
+        advance(parser);
+        
+        if (!expect(TOKEN_LEFT_BRACE, parser)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+            
+        do {
+            if (match(TOKEN_RIGHT_BRACE, parser)) break;
+            
+            AstNode *statement = parse_statement(parser);
+
+            if (else_body_count >= else_body_capacity) {
+                else_body_capacity *= 2;
+                else_body = realloc(else_body, else_body_capacity * sizeof(AstNode *));
+            }
+            else_body[else_body_count++] = statement;
+
+        } while (!match(TOKEN_RIGHT_BRACE, parser));
+    }
+
+    if (has_else) {
+        advance(parser);
+    }
+
+    AstIfStatement *iff = init_if_statement(body, else_body, expr, body_count, else_body_count);
+    AstNode *node = init_node(iff, AST_IF_STATEMENT);
+
+    return node;
+}
+
 static AstNode *parse_statement(Parser *parser) {
     if (is_valid_type(current_token(parser))) {
         return parse_type_statement(parser);
@@ -781,16 +963,22 @@ static AstNode *parse_statement(Parser *parser) {
     else if (match(TOKEN_ASM, parser)) {
         return parse_inline_asm(parser);
     }
-    else {
-        AstNode *expr = parse_expression(parser);
-        if (!expr) return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    else if (match(TOKEN_IF, parser)) {
+        return parse_if(parser);
+    }
+    else if (match(TOKEN_IDENTIFIER, parser)) {
+        advance(parser);
 
-        if (!expect(TOKEN_SEMICOLON, parser)) {
-            free_node(expr);
-            return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+        if (match(TOKEN_SINGLE_EQUALS, parser)) {
+            recede(parser);
+            return parse_assignment(parser);
         }
-
-        return expr;
+        else {
+            return parse_empty_expression(parser);
+        }
+    }
+    else {
+        return parse_empty_expression(parser);
     }
 }
 

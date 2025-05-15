@@ -11,8 +11,12 @@ int camc_init(int argc, char *argv[]) {
     }
 
     mkdir("camc", 0700);
+
+    // mkdir("src", 0700);
+    // mkdir("build", 0700);
     
     char *main_path = "camc/main.c";
+    // char *main_path = "src/main.c";
     FILE *fptr = fopen(main_path, "w");
     if (!fptr) {
         printf("Error creating '%s'\n", main_path);

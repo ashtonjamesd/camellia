@@ -22,7 +22,6 @@ void test_unterminated_string_literal() {
     free(lexer);
 }
 
-
 int main(void) {
     UNITY_BEGIN();
 

@@ -21,11 +21,22 @@ Compiler *init_compiler(AstNode **tree, int count, char *exe, int emitAsm, int e
     c->emitAsm = emitAsm;
     c->emitObj = emitObj;
 
+    c->symbol_table = malloc(sizeof(SymbolTable));
+    c->symbol_table->capacity = 1;
+    c->symbol_table->count = 0;
+    c->symbol_table->symbols = malloc(sizeof(Symbol));
+
     return c;
 }
 
 void free_compiler(Compiler *c) {
     if (!c) return;
+
+    for (int i = 0; i < c->symbol_table->count; i++) {
+        free(c->symbol_table->symbols[i].name);
+    }
+    free(c->symbol_table->symbols);
+    free(c->symbol_table);
     free(c);
 }
 
@@ -54,6 +65,27 @@ static inline void call(char *func, Compiler *c) {
     put(c, "call %s", func);
 }
 
+static void symbol_table_add(SymbolTable *table, const char *name, int offset) {
+    if (table->count >= table->capacity) {
+        table->capacity *= 2;
+        table->symbols = realloc(table->symbols, sizeof(Symbol) * table->capacity);
+    }
+    table->symbols[table->count].name = strdup(name);
+    table->symbols[table->count].offset = offset;
+
+    table->count++;
+}
+
+static int symbol_table_lookup(SymbolTable *table, const char *name) {
+    for (int i = 0; i < table->count; i++) {
+        if (strcmp(name, table->symbols[i].name) == 0) {
+            return table->symbols[i].offset;
+        }
+    }
+
+    return 0;
+} 
+
 static void generate_return(Compiler *c, AstReturn *ret) {
     if (ret->value->type == AST_LITERAL_INT) {
         put(c, "mov eax, %d", ret->value->as.lit_int->value); 
@@ -67,10 +99,26 @@ static void generate_return(Compiler *c, AstReturn *ret) {
     else if (ret->value->type == AST_BINARY) {
         generate_node(c, ret->value);
     }
+    else if (ret->value->type == AST_IDENTIFIER) {
+        int offset = symbol_table_lookup(c->symbol_table, ret->value->as.ident->name);
+        put(c, "mov rax, [rbp%d]", offset);
+    }
 }
 
 static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     fprintf(c->file, "\n%s:\n", func->identifier);
+    put(c, "push rbp");
+    put(c, "mov rbp, rsp");
+
+    int offset = -4;
+    for (int i = 0; i < func->body_count; i++) {
+        if (func->body[i]->type == AST_VARIABLE_DECLARATION) {
+            symbol_table_add(c->symbol_table, func->body[i]->as.var_dec->identifier, offset);
+            offset -= 4;
+        }
+    }
+    put(c, "sub rsp, %d", (-offset) - 4);
+
 
     for (int i = 0; i < func->body_count; i++) {
         generate_node(c, func->body[i]);
@@ -81,6 +129,8 @@ static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
         }
     }
 
+    put(c, "mov rsp, rbp"); 
+    put(c, "pop rbp");
     put(c, "ret"); 
 }
 
@@ -129,6 +179,55 @@ static void generate_inline_asm(Compiler *c, AstInlineAsmBlock *asm_inl) {
     }
 }
 
+static void generate_variable_declaration(Compiler *c, AstVariableDeclaration *var_dec) {
+    int stack_offset = symbol_table_lookup(c->symbol_table, var_dec->identifier);
+
+    if (var_dec->value->type == AST_LITERAL_INT) {
+        put(c, "mov dword [rbp%d], %d", stack_offset, var_dec->value->as.lit_int->value);
+    }
+    else if (var_dec->value->type == AST_IDENTIFIER) {
+        int source_offset = symbol_table_lookup(c->symbol_table, var_dec->value->as.ident->name);
+        put(c, "mov eax, dword [rbp%d]", source_offset);
+        put(c, "mov dword [rbp%d], eax", stack_offset);
+    }
+    else if (var_dec->value->type == AST_BINARY) {
+        generate_binary_expr(c, var_dec->value->as.binary);
+        put(c, "mov dword [rbp%d], eax", stack_offset);
+    }
+}
+
+static void generate_assignment(Compiler *c, AstAssignment *assign) {
+    int offset = symbol_table_lookup(c->symbol_table, assign->identifier);
+
+    generate_node(c, assign->value);
+    put(c, "mov [rbp%d], rax", offset);
+}
+
+static void generate_if_statement(Compiler *c, AstIfStatement *iff) {
+    static int label_counter = 0;
+    int end_label = label_counter++;
+    int else_label = label_counter++;
+
+    int cond_value = iff->condition->as.lit_int->value;
+
+    put(c, "mov eax, %d", cond_value);
+
+    put(c, "cmp eax, 0");
+    put(c, "je .Lelse%d", else_label);
+
+    for (int i = 0; i < iff->body_count; i++) {
+        generate_node(c, iff->body[i]);
+    }
+    put(c, "jmp .Lend%d", end_label);
+
+    put(c, ".Lelse%d:", else_label);
+    for (int i = 0; i < iff->else_body_count; i++) {
+        generate_node(c, iff->else_body[i]);
+    }
+
+    putf(c, ".Lend%d:", end_label);
+}
+
 static void generate_node(Compiler *c, AstNode *node) {
     if (node->type == AST_FUNCTION) {
         generate_function(c, node->as.func);
@@ -147,6 +246,22 @@ static void generate_node(Compiler *c, AstNode *node) {
     }
     else if (node->type == AST_INLINE_ASM_BLOCK) {
         generate_inline_asm(c, node->as.asm_inl);
+    }
+    else if (node->type == AST_VARIABLE_DECLARATION) {
+        generate_variable_declaration(c, node->as.var_dec);
+    }
+    else if (node->type == AST_IDENTIFIER) {
+        int offset = symbol_table_lookup(c->symbol_table, node->as.ident->name);
+        put(c, "mov eax, dword [rbp%d]", offset);
+    }
+    else if (node->type == AST_ASSIGNMENT) {
+        generate_assignment(c, node->as.assign);
+    }
+    else if (node->type == AST_IF_STATEMENT) {
+        generate_if_statement(c, node->as.iff);
+    }
+    else {
+        printf("Unknown node in compiler.");
     }
 }
 

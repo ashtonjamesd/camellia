@@ -13,7 +13,9 @@ typedef enum {
     AST_BINARY,
     AST_CALL_EXPR,
     AST_FUNCTION_PARAMETER,
-    AST_INLINE_ASM_BLOCK
+    AST_INLINE_ASM_BLOCK,
+    AST_ASSIGNMENT,
+    AST_IF_STATEMENT,
 } AstType;
 
 typedef enum {
@@ -77,6 +79,19 @@ typedef struct {
     int line_count;
 } AstInlineAsmBlock;
 
+typedef struct {
+    char *identifier;
+    AstNode *value;
+} AstAssignment;
+
+typedef struct {
+    AstNode *condition;
+    AstNode **body;
+    int body_count;
+    AstNode **else_body;
+    int else_body_count;
+} AstIfStatement;
+
 struct AstNode {
     AstType type;
 
@@ -91,6 +106,8 @@ struct AstNode {
         AstCallExpr            *call;
         AstFunctionParameter   *param;
         AstInlineAsmBlock      *asm_inl;
+        AstAssignment          *assign;
+        AstIfStatement         *iff;
     } as;
 };
 
