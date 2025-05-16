@@ -115,7 +115,6 @@ char *try_parse_macro_value(PreProcessor *ppd) {
     while (current(ppd) != '\n' && current(ppd) != '\0') {
         ppd->current++; 
     }
-    int value_len = ppd->current - value_start;
     char *value = strndup(&ppd->source[value_start], ppd->current - value_start);
 
     return value;

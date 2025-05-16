@@ -165,6 +165,7 @@ static void print_node(AstNode *node, int depth) {
             for (int i = 0; i < node->as.whilee->body_count; i++) {
                 print_node(node->as.whilee->body[i], depth + 3);
             }
+            break;
 
         default:
             printf("UNKNOWN NODE TYPE: '%s'\n", ast_type_to_str(node->type));
@@ -546,7 +547,7 @@ static AstUnary *init_unary_node(AstNode *left, Token op) {
 }
 
 static AstNode *parse_unary(Parser *parser) {
-    if (match(TOKEN_PLUS, parser) || match(TOKEN_MINUS, parser) || match(TOKEN_EXCLAMATION, parser) || match(TOKEN_TILDE, parser)) {
+    if (match(TOKEN_PLUS, parser) || match(TOKEN_MINUS, parser) || match(TOKEN_EXCLAMATION, parser) || match(TOKEN_BITWISE_NOT, parser)) {
         Token op = current_token(parser);
         advance(parser);
 
@@ -620,7 +621,7 @@ static AstVariableDeclaration *init_var_dec(char* identifier, AstNode *literal) 
 }
 
 static AstNode *parse_var_dec(Parser *parser) {
-    Token type_token = current_token(parser);
+    // Token type_token = current_token(parser);
     advance(parser);
 
     Token id_token = current_token(parser);
@@ -677,9 +678,8 @@ static AstDataType token_to_ast_data_type(Token token) {
         case TOKEN_INT: return AST_TYPE_INT;
         case TOKEN_CHAR: return AST_TYPE_CHAR;
         case TOKEN_VOID: return AST_TYPE_VOID;
+        default: return AST_TYPE_INVALID;
     }
-
-    return AST_TYPE_INVALID;
 }
 
 static int is_valid_type(Token token) {
@@ -1108,11 +1108,31 @@ static AstNode *parse_while(Parser *parser) {
 }
 
 static AstNode *parse_break(Parser *parser) {
+    advance(parser);
 
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstBreak *brk = malloc(sizeof(AstBreak));
+    AstNode *node = init_node(brk, AST_BREAK);
+    brk->dummy = 0;
+
+    return node;
 }
 
 static AstNode *parse_continue(Parser *parser) {
+    advance(parser);
 
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstContinue *cont = malloc(sizeof(AstContinue));
+    AstNode *node = init_node(cont, AST_CONTINUE);
+    cont->dummy = 0;
+
+    return node;
 }
 
 static AstNode *parse_statement(Parser *parser) {

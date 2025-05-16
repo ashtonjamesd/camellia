@@ -1,18 +1,21 @@
 #include "symtab.h"
+#include <stdio.h>
 
 VariableSymbols *init_variable_symbols() {
-
+    return NULL;
 }
 
 FunctionSymbols *init_function_symbols() {
+    return NULL;
 
 }
 
 TypedefSymbols *init_typedef_symbols() {
-
+    return NULL;
 }
 
 LabelSymbols *init_label_symbols() {
+    return NULL;
 
 }
 

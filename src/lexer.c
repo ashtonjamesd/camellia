@@ -51,7 +51,7 @@ static SymbolToken SINGLE_SYMBOLS[] = {
     {"*", TOKEN_STAR},
     {"/", TOKEN_SLASH},
     {"%", TOKEN_MODULO},
-    {"~", TOKEN_TILDE},
+    {"~", TOKEN_BITWISE_NOT},
     {"!", TOKEN_EXCLAMATION},
     {">", TOKEN_GREATER_THAN},
     {"<", TOKEN_LESS_THAN},
@@ -62,6 +62,8 @@ static SymbolToken DOUBLE_SYMBOLS[] = {
     {"<=", TOKEN_LESS_THAN_EQUALS},
     {"==", TOKEN_EQUALS},
     {"!=", TOKEN_NOT_EQUALS},
+    {"&&", TOKEN_AND},
+    {"||", TOKEN_OR},
 };
 
 static const int KEYWORDS_COUNT = sizeof(KEYWORDS) / sizeof(SymbolToken);

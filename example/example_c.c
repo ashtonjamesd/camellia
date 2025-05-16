@@ -1,15 +1,9 @@
 int main() {
-    int x = 2;
-    int c = 0;
+    int x = 1;
+    int x = 1;
 
-    while (c < 4) {
-        x = x * 2;
-
-        if (x == 32) {
-            return x;
-        }
-
-        c = c + 1;
+    while (x < 255) {
+        x = x + 1;
     }
 
     return x;

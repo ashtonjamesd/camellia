@@ -58,7 +58,7 @@ static void putf(Compiler *c, const char *format, ...) {
 }
 
 static inline void sys_call(Compiler *c) {
-    put(c, "int 0x80");
+    put(c, "syscall");
 }
 
 static inline void call(char *func, Compiler *c) {
@@ -359,8 +359,9 @@ static void asm_init(Compiler *c) {
 
     putf(c, "_start:");
     call("main", c);
-    put(c, "mov rbx, rax");
-    put(c, "mov rax, 1");
+    put(c, "mov rdi, rax");
+    put(c, "mov rax, 60");
+
     sys_call(c);
 }
 

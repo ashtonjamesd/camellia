@@ -61,13 +61,15 @@ char *token_type_to_str(TokenType type) {
         case TOKEN_CONST: return "CONST";
         case TOKEN_ASM: return "ASM";
         case TOKEN_EXCLAMATION: return "EXCLAMATION";
-        case TOKEN_TILDE: return "TILDE";
+        case TOKEN_BITWISE_NOT: return "TILDE";
         case TOKEN_GREATER_THAN: return "GREATER THAN";
         case TOKEN_LESS_THAN: return "LESS THAN";
         case TOKEN_GREATER_THAN_EQUALS: return "GREATER THAN EQUALS";
         case TOKEN_LESS_THAN_EQUALS: return "LESS THAN EQUALS";
         case TOKEN_EQUALS: return "EQUALS";
         case TOKEN_NOT_EQUALS: return "NOT EQUALS";
+        case TOKEN_AND: return "AND";
+        case TOKEN_OR: return "OR";
         default: return "UNKNOWN";
     };
 }
