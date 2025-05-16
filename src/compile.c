@@ -88,10 +88,10 @@ static int symbol_table_lookup(SymbolTable *table, const char *name) {
 
 static void generate_return(Compiler *c, AstReturn *ret) {
     if (ret->value->type == AST_LITERAL_INT) {
-        put(c, "mov eax, %d", ret->value->as.lit_int->value); 
+        put(c, "mov rax, %d", ret->value->as.lit_int->value); 
     }
     else if (ret->value->type == AST_LITERAL_CHAR) {
-        put(c, "mov eax, %d", ret->value->as.lit_int->value); 
+        put(c, "mov rax, %d", ret->value->as.lit_int->value); 
     }
     else if (ret->value->type == AST_CALL_EXPR) {
         put(c, "call %s", ret->value->as.call->identifier); 
@@ -110,14 +110,14 @@ static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     put(c, "push rbp");
     put(c, "mov rbp, rsp");
 
-    int offset = -4;
+    int offset = -8;
     for (int i = 0; i < func->body_count; i++) {
         if (func->body[i]->type == AST_VARIABLE_DECLARATION) {
             symbol_table_add(c->symbol_table, func->body[i]->as.var_dec->identifier, offset);
-            offset -= 4;
+            offset -= 8;
         }
     }
-    put(c, "sub rsp, %d", (-offset) - 4);
+    put(c, "sub rsp, %d", (-offset));
 
 
     for (int i = 0; i < func->body_count; i++) {
@@ -183,16 +183,16 @@ static void generate_variable_declaration(Compiler *c, AstVariableDeclaration *v
     int stack_offset = symbol_table_lookup(c->symbol_table, var_dec->identifier);
 
     if (var_dec->value->type == AST_LITERAL_INT) {
-        put(c, "mov dword [rbp%d], %d", stack_offset, var_dec->value->as.lit_int->value);
+        put(c, "mov qword [rbp%d], %d", stack_offset, var_dec->value->as.lit_int->value);
     }
     else if (var_dec->value->type == AST_IDENTIFIER) {
         int source_offset = symbol_table_lookup(c->symbol_table, var_dec->value->as.ident->name);
-        put(c, "mov eax, dword [rbp%d]", source_offset);
-        put(c, "mov dword [rbp%d], eax", stack_offset);
+        put(c, "mov rax, qword [rbp%d]", source_offset);
+        put(c, "mov qword [rbp%d], rax", stack_offset);
     }
     else if (var_dec->value->type == AST_BINARY) {
         generate_binary_expr(c, var_dec->value->as.binary);
-        put(c, "mov dword [rbp%d], eax", stack_offset);
+        put(c, "mov qword [rbp%d], rax", stack_offset);
     }
 }
 
@@ -200,7 +200,7 @@ static void generate_assignment(Compiler *c, AstAssignment *assign) {
     int offset = symbol_table_lookup(c->symbol_table, assign->identifier);
 
     generate_node(c, assign->value);
-    put(c, "mov [rbp%d], rax", offset);
+    put(c, "mov qword [rbp%d], rax", offset);
 }
 
 static void generate_if_statement(Compiler *c, AstIfStatement *iff) {
@@ -208,12 +208,43 @@ static void generate_if_statement(Compiler *c, AstIfStatement *iff) {
     int end_label = label_counter++;
     int else_label = label_counter++;
 
-    int cond_value = iff->condition->as.lit_int->value;
+    if (iff->condition->type == AST_BINARY) {
+        generate_node(c, iff->condition->as.binary->left);
+        put(c, "push rax");
+        generate_node(c, iff->condition->as.binary->right);
+        put(c, "mov rbx, rax");
+        put(c, "pop rax");
+        put(c, "cmp rax, rbx");
 
-    put(c, "mov eax, %d", cond_value);
-
-    put(c, "cmp eax, 0");
-    put(c, "je .Lelse%d", else_label);
+        switch (iff->condition->as.binary->op.type) {
+            case TOKEN_GREATER_THAN:
+                put(c, "jle .Lelse%d", else_label);
+                break;
+            case TOKEN_LESS_THAN:
+                put(c, "jge .Lelse%d", else_label);
+                break;
+            case TOKEN_GREATER_THAN_EQUALS:
+                put(c, "jl .Lelse%d", else_label);
+                break;
+            case TOKEN_LESS_THAN_EQUALS:
+                put(c, "jg .Lelse%d", else_label);
+                break;
+            case TOKEN_EQUALS:
+                put(c, "jne .Lelse%d", else_label);
+                break;
+            case TOKEN_NOT_EQUALS:
+                put(c, "je .Lelse%d", else_label);
+                break;
+            default:
+                fprintf(stderr, "unsupported binary operator");
+                break;
+        }
+    }
+    else {
+        generate_node(c, iff->condition);
+        put(c, "cmp rax, 0");
+        put(c, "je .Lelse%d", else_label);
+    }
 
     for (int i = 0; i < iff->body_count; i++) {
         generate_node(c, iff->body[i]);
@@ -226,6 +257,59 @@ static void generate_if_statement(Compiler *c, AstIfStatement *iff) {
     }
 
     putf(c, ".Lend%d:", end_label);
+}
+
+static void generate_while_statement(Compiler *c, AstWhile *whilee) {
+    static int while_label = 0;
+    int start_label = while_label++;
+    int end_label = while_label++;
+
+    putf(c, ".Lwhile_start%d:", start_label);
+
+    if (whilee->condition->type == AST_BINARY) {
+        generate_node(c, whilee->condition->as.binary->left);
+        put(c, "push rax");
+        generate_node(c, whilee->condition->as.binary->right);
+        put(c, "mov rbx, rax");
+        put(c, "pop rax");
+        put(c, "cmp rax, rbx");
+        
+        switch (whilee->condition->as.binary->op.type) {
+            case TOKEN_EQUALS:
+                put(c, "jne .Lwhile_end%d", end_label); 
+                break;
+            case TOKEN_NOT_EQUALS:
+                put(c, "je .Lwhile_end%d", end_label); 
+                break;
+            case TOKEN_LESS_THAN:
+                put(c, "jge .Lwhile_end%d", end_label); 
+                break;
+            case TOKEN_GREATER_THAN:
+                put(c, "jle .Lwhile_end%d", end_label); 
+                break;
+            case TOKEN_LESS_THAN_EQUALS:
+                put(c, "jg .Lwhile_end%d", end_label); 
+                break;
+            case TOKEN_GREATER_THAN_EQUALS:
+                put(c, "jl .Lwhile_end%d", end_label); 
+                break;
+            default:
+                fprintf(stderr, "Unsupported comparison operator in while condition.\n");
+                return;
+        }
+    }
+    else {
+        generate_node(c, whilee->condition);
+        put(c, "cmp rax, 0");
+        put(c, "je .Lwhile_end%d", end_label);
+    }
+
+    for (int i = 0; i < whilee->body_count; i++) {
+        generate_node(c, whilee->body[i]);
+    }
+
+    put(c, "jmp .Lwhile_start%d", start_label);
+    putf(c, ".Lwhile_end%d:", end_label);
 }
 
 static void generate_node(Compiler *c, AstNode *node) {
@@ -252,13 +336,16 @@ static void generate_node(Compiler *c, AstNode *node) {
     }
     else if (node->type == AST_IDENTIFIER) {
         int offset = symbol_table_lookup(c->symbol_table, node->as.ident->name);
-        put(c, "mov eax, dword [rbp%d]", offset);
+        put(c, "mov rax, qword [rbp%d]", offset);
     }
     else if (node->type == AST_ASSIGNMENT) {
         generate_assignment(c, node->as.assign);
     }
-    else if (node->type == AST_IF_STATEMENT) {
+    else if (node->type == AST_IF) {
         generate_if_statement(c, node->as.iff);
+    }
+    else if (node->type == AST_WHILE) {
+        generate_while_statement(c, node->as.whilee);
     }
     else {
         printf("Unknown node in compiler.");
@@ -272,8 +359,8 @@ static void asm_init(Compiler *c) {
 
     putf(c, "_start:");
     call("main", c);
-    put(c, "mov ebx, eax");
-    put(c, "mov eax, 1");
+    put(c, "mov rbx, rax");
+    put(c, "mov rax, 1");
     sys_call(c);
 }
 

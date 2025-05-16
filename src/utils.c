@@ -8,6 +8,16 @@ char* ast_type_to_str(AstType type) {
         case AST_FUNCTION: return "FUNCTION";
         case AST_RETURN: return "RETURN";
         case AST_IDENTIFIER: return "IDENTIFIER";
+        case AST_BINARY: return "BINARY";
+        case AST_CALL_EXPR: return "CALL EXPR";
+        case AST_FUNCTION_PARAMETER: return "FUNTION PARAM";
+        case AST_INLINE_ASM_BLOCK: return "INLINE ASM";
+        case AST_ASSIGNMENT: return "ASSIGNMENT";
+        case AST_IF: return "IF";
+        case AST_WHILE: return "WHILE";
+        case AST_BREAK: return "BREAK";
+        case AST_CONTINUE: return "CONTINUE";
+        case AST_UNARY: return "UNARY";
         default: return "UNKNOWN TYPE";
     }
 }

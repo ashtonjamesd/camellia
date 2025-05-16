@@ -37,7 +37,7 @@ static SymbolToken KEYWORDS[] = {
     {"asm", TOKEN_ASM},
 };
 
-static SymbolToken SYMBOLS[] = {
+static SymbolToken SINGLE_SYMBOLS[] = {
     {";", TOKEN_SEMICOLON},
     {"(", TOKEN_LEFT_PAREN},
     {")", TOKEN_RIGHT_PAREN},
@@ -51,10 +51,23 @@ static SymbolToken SYMBOLS[] = {
     {"*", TOKEN_STAR},
     {"/", TOKEN_SLASH},
     {"%", TOKEN_MODULO},
+    {"~", TOKEN_TILDE},
+    {"!", TOKEN_EXCLAMATION},
+    {">", TOKEN_GREATER_THAN},
+    {"<", TOKEN_LESS_THAN},
+};
+
+static SymbolToken DOUBLE_SYMBOLS[] = {
+    {">=", TOKEN_GREATER_THAN_EQUALS},
+    {"<=", TOKEN_LESS_THAN_EQUALS},
+    {"==", TOKEN_EQUALS},
+    {"!=", TOKEN_NOT_EQUALS},
 };
 
 static const int KEYWORDS_COUNT = sizeof(KEYWORDS) / sizeof(SymbolToken);
-static const int SYMBOL_COUNT = sizeof(SYMBOLS) / sizeof(SymbolToken);
+
+static const int SINGLE_SYMBOL_COUNT = sizeof(SINGLE_SYMBOLS) / sizeof(SymbolToken);
+static const int DOUBLE_SYMBOL_COUNT = sizeof(DOUBLE_SYMBOLS) / sizeof(SymbolToken);
 
 Lexer *init_lexer(char *source, int debug) {
     Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
@@ -126,21 +139,30 @@ static inline void lexer_err(LexErr error, Lexer *lexer) {
 }
 
 static Token *parse_symbol(Lexer *lexer) {
-    TokenType type;
-
-    for (int i = 0; i < SYMBOL_COUNT; i++) {
-        const char *symbol = SYMBOLS[i].symbol;
+    // Check double symbols first
+    for (int i = 0; i < DOUBLE_SYMBOL_COUNT; i++) {
+        const char *symbol = DOUBLE_SYMBOLS[i].symbol;
         size_t len = strlen(symbol);
+        if (strncmp(&lexer->source[lexer->current], symbol, len) == 0) {
+            Token *token = init_token(symbol, DOUBLE_SYMBOLS[i].type, lexer);
+            lexer->current += len - 1; // Advance manually because we consume multiple characters
+            return token;
+        }
+    }
 
-        if (strncmp(symbol, &lexer->source[lexer->current], len) == 0) {
-            return init_token(symbol, SYMBOLS[i].type, lexer);
+    // Then single symbols
+    for (int i = 0; i < SINGLE_SYMBOL_COUNT; i++) {
+        const char *symbol = SINGLE_SYMBOLS[i].symbol;
+        size_t len = strlen(symbol);
+        if (strncmp(&lexer->source[lexer->current], symbol, len) == 0) {
+            return init_token(symbol, SINGLE_SYMBOLS[i].type, lexer);
         }
     }
 
     lexer_err(INVALID_SYMBOL, lexer);
-
     return NULL;
 }
+
 
 static inline int is_valid_esc(char c) {
     return c == 'a' 

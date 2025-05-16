@@ -106,6 +106,15 @@ static void print_node(AstNode *node, int depth) {
             print_node(node->as.binary->right, depth + 2);
             break;
 
+        case AST_UNARY:
+            printf("UNARY EXPRESSION:\n");
+            print_depth(depth + 1);
+            printf("LEFT:\n");
+            print_node(node->as.unary->left, depth + 2);
+            print_depth(depth + 1);
+            printf("OPERATOR: %s\n", node->as.unary->op.lexeme);
+            break;
+
         case AST_IDENTIFIER:
             printf("IDENTIFIER: %s\n", node->as.ident->name);
             break;
@@ -125,22 +134,40 @@ static void print_node(AstNode *node, int depth) {
             print_node(node->as.assign->value, depth + 2);
             break;
 
-        case AST_IF_STATEMENT:
+        case AST_IF:
             printf("IF STATEMENT:\n");
+            print_depth(depth + 1);
+            printf("CONDITION:\n");
+            print_node(node->as.iff->condition, depth + 2);
+            print_depth(depth + 2);
+            printf("BODY (%d):\n", node->as.iff->body_count);
             for (int i = 0; i < node->as.iff->body_count; i++) {
-                print_node(node->as.iff->body[i], depth + 1);
+                print_node(node->as.iff->body[i], depth + 3);
             }
             if (node->as.iff->else_body) {
                 print_depth(depth);
                 printf("ELSE:\n");
+                print_depth(depth + 1);
+                printf("BODY (%d):\n", node->as.iff->else_body_count);
                 for (int i = 0; i < node->as.iff->else_body_count; i++) {
-                    print_node(node->as.iff->else_body[i], depth + 1);
+                    print_node(node->as.iff->else_body[i], depth + 2);
                 }
             }
             break;
 
+        case AST_WHILE:
+            printf("WHILE STATEMENT:\n");
+            print_depth(depth + 1);
+            printf("CONDITION:\n");
+            print_node(node->as.whilee->condition, depth + 2);
+            print_depth(depth + 2);
+            printf("BODY (%d):\n", node->as.whilee->body_count);
+            for (int i = 0; i < node->as.whilee->body_count; i++) {
+                print_node(node->as.whilee->body[i], depth + 3);
+            }
+
         default:
-            printf("UNKNOWN NODE TYPE: %d\n", node->type);
+            printf("UNKNOWN NODE TYPE: '%s'\n", ast_type_to_str(node->type));
             break;
     }
 }
@@ -210,6 +237,11 @@ static void free_node(AstNode *node) {
         free(node->as.binary);
         free(node);
     }
+    else if (node->type == AST_UNARY) {
+        free(node->as.unary->left);
+        free(node->as.unary);
+        free(node);
+    }
     else if (node->type == AST_CALL_EXPR) {
         free(node->as.call->identifier);
         free(node->as.call);
@@ -229,12 +261,30 @@ static void free_node(AstNode *node) {
         free(node->as.assign);
         free(node);
     }
-    else if (node->type == AST_IF_STATEMENT) {
+    else if (node->type == AST_IF) {
         for (int i = 0; i < node->as.iff->body_count; i++) {
             free_node(node->as.iff->body[i]);
         }
 
         free(node->as.iff);
+        free(node);
+    }
+    else if (node->type == AST_WHILE) {
+        for (int i = 0; i < node->as.whilee->body_count; i++) {
+            free_node(node->as.whilee->body[i]);
+        }
+
+        free_node(node->as.whilee->condition);
+
+        free(node->as.whilee);
+        free(node);
+    }
+    else if (node->type == AST_CONTINUE) {
+        free(node->as.cont);
+        free(node);
+    }
+    else if (node->type == AST_BREAK) {
+        free(node->as.brk);
         free(node);
     }
     else {
@@ -291,8 +341,20 @@ static AstNode *init_node(void *value, AstType type){
     else if (type == AST_ASSIGNMENT) {
         node->as.assign = (AstAssignment *)value;
     }
-    else if (type == AST_IF_STATEMENT) {
+    else if (type == AST_IF) {
         node->as.iff = (AstIfStatement *)value;
+    }
+    else if (type == AST_WHILE) {
+        node->as.whilee = (AstWhile *)value;
+    }
+    else if (type == AST_BREAK) {
+        node->as.brk = (AstBreak *)value;
+    }
+    else if (type == AST_CONTINUE) {
+        node->as.cont = (AstContinue *)value;
+    }
+    else if (type == AST_UNARY) {
+        node->as.unary = (AstUnary *)value;
     }
     else {
         printf("Unknown AstType in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -475,8 +537,29 @@ static AstBinaryExpr *init_binary_node(AstNode *left, Token op, AstNode *right) 
     return binary;
 }
 
+static AstUnary *init_unary_node(AstNode *left, Token op) {
+    AstUnary *unary = malloc(sizeof(AstUnary));
+    unary->left = left;
+    unary->op = op;
+
+    return unary;
+}
+
+static AstNode *parse_unary(Parser *parser) {
+    if (match(TOKEN_PLUS, parser) || match(TOKEN_MINUS, parser) || match(TOKEN_EXCLAMATION, parser) || match(TOKEN_TILDE, parser)) {
+        Token op = current_token(parser);
+        advance(parser);
+
+        AstNode *right = parse_unary(parser);
+        AstUnary *unary = init_unary_node(right, op);
+        return init_node(unary, AST_UNARY);
+    }
+
+    return parse_primary(parser);
+}
+
 static AstNode *parse_factor(Parser *parser) {
-    AstNode *left = parse_primary(parser);
+    AstNode *left = parse_unary(parser);
     
     while (match(TOKEN_STAR, parser) || match(TOKEN_SLASH, parser) || match(TOKEN_MODULO, parser)) {
         Token op = current_token(parser);
@@ -505,8 +588,26 @@ static AstNode *parse_term(Parser *parser) {
     return left;
 }
 
+static AstNode *parse_comparison(Parser *parser) {
+    AstNode *left = parse_term(parser);
+
+    while (
+        match(TOKEN_EQUALS, parser) || match(TOKEN_GREATER_THAN, parser) || match(TOKEN_LESS_THAN_EQUALS, parser) ||
+        match(TOKEN_GREATER_THAN_EQUALS, parser) || match(TOKEN_LESS_THAN, parser) || match(TOKEN_NOT_EQUALS, parser)
+    ) {
+        Token op = current_token(parser);
+        advance(parser);
+
+        AstNode *right = parse_term(parser);
+        AstBinaryExpr *binary = init_binary_node(left, op, right);
+        left = init_node(binary, AST_BINARY);
+    }
+
+    return left;
+}
+
 static AstNode *parse_expression(Parser *parser) {
-    return parse_term(parser);
+    return parse_comparison(parser);
 }
 
 static AstVariableDeclaration *init_var_dec(char* identifier, AstNode *literal) {
@@ -882,8 +983,8 @@ static AstNode *parse_if(Parser *parser) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
 
-    AstNode *expr = parse_expression(parser);
-    if (!expr) {
+    AstNode *if_condition = parse_expression(parser);
+    if (!if_condition) {
         return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
     }
 
@@ -947,10 +1048,71 @@ static AstNode *parse_if(Parser *parser) {
         advance(parser);
     }
 
-    AstIfStatement *iff = init_if_statement(body, else_body, expr, body_count, else_body_count);
-    AstNode *node = init_node(iff, AST_IF_STATEMENT);
+    AstIfStatement *iff = init_if_statement(body, else_body, if_condition, body_count, else_body_count);
+    AstNode *node = init_node(iff, AST_IF);
 
     return node;
+}
+
+static AstWhile *init_while(AstNode *condition, AstNode **body, int body_count) {
+    AstWhile *whilee = malloc(sizeof(AstWhile));
+    whilee->condition = condition;
+    whilee->body = body;
+    whilee->body_count = body_count;
+
+    return whilee;
+}
+
+static AstNode *parse_while(Parser *parser) {
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *condition = parse_expression(parser);
+    if (!condition) {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_LEFT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    int body_count = 0;
+    int body_capacity = 1;
+    AstNode **body = malloc(sizeof(AstNode *));
+
+    do {
+        if (match(TOKEN_RIGHT_BRACE, parser)) break;
+        AstNode *statement = parse_statement(parser);
+
+        if (body_count >= body_capacity) {
+            body_capacity *= 2;
+            body = realloc(body, body_capacity * sizeof(AstNode *));
+        }
+        body[body_count++] = statement;
+
+    } while (!match(TOKEN_RIGHT_BRACE, parser));
+
+    advance(parser);
+
+    AstWhile *whilee = init_while(condition, body, body_count);
+    AstNode *node = init_node(whilee, AST_WHILE);
+
+    return node;
+}
+
+static AstNode *parse_break(Parser *parser) {
+
+}
+
+static AstNode *parse_continue(Parser *parser) {
+
 }
 
 static AstNode *parse_statement(Parser *parser) {
@@ -965,6 +1127,15 @@ static AstNode *parse_statement(Parser *parser) {
     }
     else if (match(TOKEN_IF, parser)) {
         return parse_if(parser);
+    }
+    else if (match(TOKEN_WHILE, parser)) {
+        return parse_while(parser);
+    }
+    else if (match(TOKEN_BREAK, parser)) {
+        return parse_break(parser);
+    }
+    else if (match(TOKEN_CONTINUE, parser)) {
+        return parse_continue(parser);
     }
     else if (match(TOKEN_IDENTIFIER, parser)) {
         advance(parser);

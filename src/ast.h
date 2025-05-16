@@ -15,7 +15,11 @@ typedef enum {
     AST_FUNCTION_PARAMETER,
     AST_INLINE_ASM_BLOCK,
     AST_ASSIGNMENT,
-    AST_IF_STATEMENT,
+    AST_IF,
+    AST_WHILE,
+    AST_BREAK,
+    AST_CONTINUE,
+    AST_UNARY
 } AstType;
 
 typedef enum {
@@ -92,6 +96,25 @@ typedef struct {
     int else_body_count;
 } AstIfStatement;
 
+typedef struct {
+    AstNode *condition;
+    AstNode **body;
+    int body_count;
+} AstWhile;
+
+typedef struct {
+    int dummy;
+} AstBreak;
+
+typedef struct {
+    int dummy;
+} AstContinue;
+
+typedef struct {
+    AstNode *left;
+    Token    op;
+} AstUnary;
+
 struct AstNode {
     AstType type;
 
@@ -108,6 +131,10 @@ struct AstNode {
         AstInlineAsmBlock      *asm_inl;
         AstAssignment          *assign;
         AstIfStatement         *iff;
+        AstWhile               *whilee;
+        AstBreak               *brk;
+        AstContinue            *cont;
+        AstUnary               *unary;
     } as;
 };
 
