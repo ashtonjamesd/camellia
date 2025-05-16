@@ -55,6 +55,14 @@ static SymbolToken SINGLE_SYMBOLS[] = {
     {"!", TOKEN_EXCLAMATION},
     {">", TOKEN_GREATER_THAN},
     {"<", TOKEN_LESS_THAN},
+    {".", TOKEN_DOT},
+    {"[", TOKEN_SQUARE_BRACKET_LEFT},
+    {"]", TOKEN_SQUARE_BRACKET_RIGHT},
+    {"?", TOKEN_QUESTION},
+    {":", TOKEN_COLON},
+    {"&", TOKEN_BITWISE_AND},
+    {"|", TOKEN_BITWISE_OR},
+    {"^", TOKEN_BITWISE_XOR},
 };
 
 static SymbolToken DOUBLE_SYMBOLS[] = {
@@ -64,12 +72,25 @@ static SymbolToken DOUBLE_SYMBOLS[] = {
     {"!=", TOKEN_NOT_EQUALS},
     {"&&", TOKEN_AND},
     {"||", TOKEN_OR},
+    {"++", TOKEN_INCREMENT},
+    {"--", TOKEN_DECREMENT},
+    {"->", TOKEN_ARROW_OP},
+    {">>", TOKEN_BITWISE_RIGHT_SHIFT},
+    {"<<", TOKEN_BITWISE_LEFT_SHIFT},
 };
+
+static SymbolToken TRIPLE_SYMBOLS[] = {
+    {"<<=", TOKEN_BITWISE_LEFT_SHIFT_EQUALS},
+    {">>=", TOKEN_BITWISE_RIGHT_SHIFT_EQUALS},
+    {"...", TOKEN_ELLIPSIS},
+};
+
 
 static const int KEYWORDS_COUNT = sizeof(KEYWORDS) / sizeof(SymbolToken);
 
 static const int SINGLE_SYMBOL_COUNT = sizeof(SINGLE_SYMBOLS) / sizeof(SymbolToken);
 static const int DOUBLE_SYMBOL_COUNT = sizeof(DOUBLE_SYMBOLS) / sizeof(SymbolToken);
+static const int TRIPLE_SYMBOL_COUNT = sizeof(TRIPLE_SYMBOLS) / sizeof(SymbolToken);
 
 Lexer *init_lexer(char *source, int debug) {
     Lexer *lexer = (Lexer *)malloc(sizeof(Lexer));
@@ -104,7 +125,7 @@ char *lexer_err_to_str(LexErr err) {
 }
 
 static inline int is_end(Lexer *lexer) {
-    return lexer->current >= strlen(lexer->source);
+    return lexer->current >= (int)strlen(lexer->source);
 }
 
 Token *init_token(const char *lexeme, TokenType type, Lexer *lexer) {
@@ -120,7 +141,7 @@ Token *init_token(const char *lexeme, TokenType type, Lexer *lexer) {
 static inline char current_char(Lexer *lexer) {
     if (lexer->source == NULL) return '\0';
 
-    if (lexer->current >= strlen(lexer->source)) return '\0';
+    if (lexer->current >= (int)strlen(lexer->source)) return '\0';
     return lexer->source[lexer->current];
 }
 
@@ -141,18 +162,26 @@ static inline void lexer_err(LexErr error, Lexer *lexer) {
 }
 
 static Token *parse_symbol(Lexer *lexer) {
-    // Check double symbols first
+    for (int i = 0; i < TRIPLE_SYMBOL_COUNT; i++) {
+        const char *symbol = TRIPLE_SYMBOLS[i].symbol;
+        size_t len = strlen(symbol);
+        if (strncmp(&lexer->source[lexer->current], symbol, len) == 0) {
+            Token *token = init_token(symbol, TRIPLE_SYMBOLS[i].type, lexer);
+            lexer->current += len - 1;
+            return token;
+        }
+    }
+
     for (int i = 0; i < DOUBLE_SYMBOL_COUNT; i++) {
         const char *symbol = DOUBLE_SYMBOLS[i].symbol;
         size_t len = strlen(symbol);
         if (strncmp(&lexer->source[lexer->current], symbol, len) == 0) {
             Token *token = init_token(symbol, DOUBLE_SYMBOLS[i].type, lexer);
-            lexer->current += len - 1; // Advance manually because we consume multiple characters
+            lexer->current += len - 1;
             return token;
         }
     }
 
-    // Then single symbols
     for (int i = 0; i < SINGLE_SYMBOL_COUNT; i++) {
         const char *symbol = SINGLE_SYMBOLS[i].symbol;
         size_t len = strlen(symbol);
@@ -164,7 +193,6 @@ static Token *parse_symbol(Lexer *lexer) {
     lexer_err(INVALID_SYMBOL, lexer);
     return NULL;
 }
-
 
 static inline int is_valid_esc(char c) {
     return c == 'a' 

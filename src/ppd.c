@@ -37,7 +37,7 @@ void advance(PreProcessor *ppd) {
 }
 
 int is_end(PreProcessor *ppd) {
-    return ppd->current >= strlen(ppd->source);
+    return ppd->current >= (int)strlen(ppd->source);
 }
 
 char current(PreProcessor *ppd) {

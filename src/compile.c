@@ -342,10 +342,10 @@ static void generate_node(Compiler *c, AstNode *node) {
         generate_assignment(c, node->as.assign);
     }
     else if (node->type == AST_IF) {
-        generate_if_statement(c, node->as.iff);
+        generate_if_statement(c, node->as.if_stmt);
     }
     else if (node->type == AST_WHILE) {
-        generate_while_statement(c, node->as.whilee);
+        generate_while_statement(c, node->as.while_stmt);
     }
     else {
         printf("Unknown node in compiler.");

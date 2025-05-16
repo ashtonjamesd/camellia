@@ -19,7 +19,9 @@ typedef enum {
     AST_WHILE,
     AST_BREAK,
     AST_CONTINUE,
-    AST_UNARY
+    AST_UNARY,
+    AST_FOR,
+    AST_TERNARY,
 } AstType;
 
 typedef enum {
@@ -115,6 +117,20 @@ typedef struct {
     Token    op;
 } AstUnary;
 
+typedef struct {
+    AstNode *initializer;
+    AstNode *condition;
+    AstNode *alteration;
+    AstNode **body;
+    int body_count;
+} AstFor;
+
+typedef struct {
+    AstNode *condition;
+    AstNode *true_expr;
+    AstNode *false_expr;
+} AstTernary;
+
 struct AstNode {
     AstType type;
 
@@ -130,11 +146,13 @@ struct AstNode {
         AstFunctionParameter   *param;
         AstInlineAsmBlock      *asm_inl;
         AstAssignment          *assign;
-        AstIfStatement         *iff;
-        AstWhile               *whilee;
+        AstIfStatement         *if_stmt;
+        AstWhile               *while_stmt;
         AstBreak               *brk;
         AstContinue            *cont;
         AstUnary               *unary;
+        AstFor                 *for_stmt;
+        AstTernary         *ternary;
     } as;
 };
 

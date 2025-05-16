@@ -53,6 +53,10 @@ int camc_build(int argc, char *argv[]) {
     // run with all .c and .h files
     // produce executable in /build
 
+    if (!argv) {
+        if (argc) {}
+    }
+
     return 0;
 }
 
@@ -60,10 +64,17 @@ int camc_run(int argc, char *argv[]) {
     // call camc_build
     // run the executable
 
+    if (!argv) {
+        if (argc) {}
+    }
+
     return 0;
 }
 
 int camc_bump(int argc, char *argv[]) {
+    if (!argv) {
+        if (argc) {}
+    }
 
     return 0;
 }
