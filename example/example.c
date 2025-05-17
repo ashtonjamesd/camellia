@@ -1,5 +1,6 @@
 int main() {
-    int x = 1 ? 1 : 2;
+    int x = 0;
+    int sum = 1 - 2 * 3;
 
-    return 0;
+    return sum;
 }

@@ -77,6 +77,14 @@ static SymbolToken DOUBLE_SYMBOLS[] = {
     {"->", TOKEN_ARROW_OP},
     {">>", TOKEN_BITWISE_RIGHT_SHIFT},
     {"<<", TOKEN_BITWISE_LEFT_SHIFT},
+    {"+=", TOKEN_PLUS_EQUALS},
+    {"-=", TOKEN_MINUS_EQUALS},
+    {"*=", TOKEN_STAR_EQUALS},
+    {"/=", TOKEN_SLASH_EQUALS},
+    {"%=", TOKEN_MODULO_EQUALS},
+    {"&=", TOKEN_BITWISE_AND_EQUALS},
+    {"|=", TOKEN_BITWISE_OR_EQUALS},
+    {"^=", TOKEN_BITWISE_XOR_EQUALS},
 };
 
 static SymbolToken TRIPLE_SYMBOLS[] = {

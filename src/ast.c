@@ -8,6 +8,7 @@
 
 static AstNode *parse_statement(Parser *parser);
 static AstNode *parse_expression(Parser *parser);
+static AstAssignment *init_assignment(char *identifier, AstNode *value);
 
 Parser *init_parser(Token *tokens, int debug, char *file) {
     Parser *parser = (Parser *)malloc(sizeof(Parser));
@@ -582,6 +583,8 @@ static AstNode *parse_primary(Parser *parser) {
         return node;
     }
 
+    printf("Bad primary expression");
+
     return NULL;
 }
 
@@ -839,8 +842,66 @@ static AstNode *parse_ternary(Parser *parser) {
     return left;
 }
 
+static AstNode *parse_compound(Parser *parser) {
+    AstNode *left = parse_ternary(parser);
+    printf("%s", current_token(parser).lexeme);
+
+    if (match(TOKEN_EQUALS, parser)) {
+        Token op = current_token(parser);
+        advance(parser);
+
+        AstNode *right = parse_compound(parser);
+        AstBinaryExpr *binary = init_binary_node(left, op, right);
+        return init_node(binary, AST_BINARY);
+    }
+
+    if (
+        match(TOKEN_PLUS_EQUALS, parser) || match(TOKEN_MINUS_EQUALS, parser) || 
+        match(TOKEN_STAR_EQUALS, parser) || match(TOKEN_SLASH_EQUALS, parser) ||
+        match(TOKEN_MODULO_EQUALS, parser) || match(TOKEN_BITWISE_AND_EQUALS, parser) ||
+        match(TOKEN_BITWISE_OR_EQUALS, parser) || match(TOKEN_BITWISE_XOR_EQUALS, parser) ||
+        match(TOKEN_BITWISE_LEFT_SHIFT_EQUALS, parser) || match(TOKEN_BITWISE_RIGHT_SHIFT_EQUALS, parser)
+    ) {
+        Token compound_op = current_token(parser);
+        advance(parser);
+
+        AstNode *right = parse_compound(parser);
+        TokenType op;
+
+        TokenType binary_type;
+        switch (compound_op.type) {
+            case TOKEN_PLUS_EQUALS: binary_type = TOKEN_PLUS; break;
+            case TOKEN_MINUS_EQUALS: binary_type = TOKEN_MINUS; break;
+            case TOKEN_STAR_EQUALS: binary_type = TOKEN_STAR; break;
+            case TOKEN_SLASH_EQUALS: binary_type = TOKEN_SLASH; break;
+            case TOKEN_MODULO_EQUALS: binary_type = TOKEN_MODULO; break;
+            case TOKEN_BITWISE_AND_EQUALS: binary_type = TOKEN_BITWISE_AND; break;
+            case TOKEN_BITWISE_OR_EQUALS: binary_type = TOKEN_BITWISE_OR; break;
+            case TOKEN_BITWISE_XOR_EQUALS: binary_type = TOKEN_BITWISE_XOR; break;
+            case TOKEN_BITWISE_LEFT_SHIFT_EQUALS: binary_type = TOKEN_BITWISE_LEFT_SHIFT; break;
+            case TOKEN_BITWISE_RIGHT_SHIFT_EQUALS: binary_type = TOKEN_BITWISE_RIGHT_SHIFT; break;
+            default: return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        // x += 1;
+        // x = x + 1;
+
+        Token binary_tok = compound_op;
+        binary_tok.type = binary_type;
+        binary_tok.lexeme = "+";
+
+        AstBinaryExpr *binary = init_binary_node(left, binary_tok, right);
+        AstNode *node = init_node(binary, AST_BINARY);
+
+        AstAssignment *assign = init_assignment(left->as.ident->name, node);
+        return init_node(assign, AST_ASSIGNMENT);
+    }
+
+    return left;
+}
+
 static AstNode *parse_expression(Parser *parser) {
-    return parse_ternary(parser);
+    return parse_compound(parser);
 }
 
 static AstVariableDeclaration *init_var_dec(char* identifier, AstNode *literal) {
@@ -1484,6 +1545,7 @@ static AstNode *parse_statement(Parser *parser) {
             return parse_assignment(parser);
         }
         else {
+            recede(parser);
             return parse_empty_expression(parser);
         }
     }

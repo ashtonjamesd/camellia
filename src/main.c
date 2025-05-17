@@ -148,6 +148,8 @@ int main(int argc, char *argv[]) {
   // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
   // analyze_ast(analyzer);
 
+  // return 0;
+
   Compiler *compiler = init_compiler(parser->tree, parser->node_count, exe_path, emitAsm, emitObj);
   compile(compiler);
 
