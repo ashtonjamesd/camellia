@@ -113,7 +113,7 @@ static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     int offset = -8;
     for (int i = 0; i < func->body_count; i++) {
         if (func->body[i]->type == AST_VARIABLE_DECLARATION) {
-            symbol_table_add(c->symbol_table, func->body[i]->as.var_dec->identifier, offset);
+            // symbol_table_add(c->symbol_table, func->body[i]->as.var_dec->identifier, offset);
             offset -= 8;
         }
     }
@@ -180,20 +180,20 @@ static void generate_inline_asm(Compiler *c, AstInlineAsmBlock *asm_inl) {
 }
 
 static void generate_variable_declaration(Compiler *c, AstVariableDeclaration *var_dec) {
-    int stack_offset = symbol_table_lookup(c->symbol_table, var_dec->identifier);
+    // int stack_offset = symbol_table_lookup(c->symbol_table, var_dec->identifier);
 
-    if (var_dec->value->type == AST_LITERAL_INT) {
-        put(c, "mov qword [rbp%d], %d", stack_offset, var_dec->value->as.lit_int->value);
-    }
-    else if (var_dec->value->type == AST_IDENTIFIER) {
-        int source_offset = symbol_table_lookup(c->symbol_table, var_dec->value->as.ident->name);
-        put(c, "mov rax, qword [rbp%d]", source_offset);
-        put(c, "mov qword [rbp%d], rax", stack_offset);
-    }
-    else if (var_dec->value->type == AST_BINARY) {
-        generate_binary_expr(c, var_dec->value->as.binary);
-        put(c, "mov qword [rbp%d], rax", stack_offset);
-    }
+    // if (var_dec->value->type == AST_LITERAL_INT) {
+    //     put(c, "mov qword [rbp%d], %d", stack_offset, var_dec->value->as.lit_int->value);
+    // }
+    // else if (var_dec->value->type == AST_IDENTIFIER) {
+    //     int source_offset = symbol_table_lookup(c->symbol_table, var_dec->value->as.ident->name);
+    //     put(c, "mov rax, qword [rbp%d]", source_offset);
+    //     put(c, "mov qword [rbp%d], rax", stack_offset);
+    // }
+    // else if (var_dec->value->type == AST_BINARY) {
+    //     generate_binary_expr(c, var_dec->value->as.binary);
+    //     put(c, "mov qword [rbp%d], rax", stack_offset);
+    // }
 }
 
 static void generate_assignment(Compiler *c, AstAssignment *assign) {

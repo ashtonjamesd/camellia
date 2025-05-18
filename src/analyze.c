@@ -44,7 +44,7 @@ void add_variable_symbol(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
     }
     
     VariableSymbol *symbol = malloc(sizeof(VariableSymbol));
-    symbol->identifier = strdup(var_dec->identifier);
+    // symbol->identifier = strdup(var_dec->identifier);
 
     analyzer->variable_symbols->symbols[analyzer->variable_symbols->count++] = symbol;
 }
@@ -62,10 +62,10 @@ VariableSymbol *get_variable_symbol(char *symbol, Analyzer *analyzer) {
 }
 
 void analyze_variable_declaration(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
-    if (get_variable_symbol(var_dec->identifier, analyzer)) {
-        printf("Redefinition of variable '%s'\n", var_dec->identifier);
-        return;
-    }
+    // if (get_variable_symbol(var_dec->identifier, analyzer)) {
+    //     printf("Redefinition of variable '%s'\n", var_dec->identifier);
+    //     return;
+    // }
 
     add_variable_symbol(var_dec, analyzer);
 }

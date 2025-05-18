@@ -35,6 +35,7 @@ static SymbolToken KEYWORDS[] = {
     {"void", TOKEN_VOID},
     {"const", TOKEN_CONST},
     {"asm", TOKEN_ASM},
+    {"volatile", TOKEN_VOLATILE},
 };
 
 static SymbolToken SINGLE_SYMBOLS[] = {

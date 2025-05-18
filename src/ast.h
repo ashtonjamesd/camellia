@@ -31,6 +31,12 @@ typedef enum {
     AST_TYPE_INVALID,
 } AstDataType;
 
+typedef enum {
+    DECL_STATIC   = 1 << 0,
+    DECL_CONST    = 1 << 1,
+    DECL_VOLATILE = 1 << 2,
+} AstDeclQualifierFlags;
+
 typedef struct AstNode AstNode;
 
 typedef struct {
@@ -42,9 +48,16 @@ typedef struct {
 } AstLiteralChar;
 
 typedef struct {
-    AstDataType type;
     char       *identifier;
     AstNode    *value;
+    int pointer_level;
+} AstDeclarator;
+
+typedef struct {
+    AstDataType type;
+    AstDeclarator **declarators;
+    int declarator_count;
+    int qualifiers; // bitmask for decl_flags
 } AstVariableDeclaration;
 
 typedef struct {
@@ -177,6 +190,13 @@ typedef struct {
     // the name of the file being parsed
     char     *file;
     ParseErr  err;
+
+    // 1 when the parser is parsing a variable declaration
+    // this is used to stop the parser from assuming a comma operator in the following:
+    //    int x = 1, y;
+    //
+    // this flag prevents the above being parsed as a binary expression rather than a list of declarators
+    int is_var_dec;
 
     // the token that caused the err, null if none occurred
     Token     errToken;
