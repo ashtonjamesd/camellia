@@ -135,6 +135,8 @@ static void print_node(AstNode *node, int depth) {
             print_node(node->as.unary->left, depth +  factor * 2);
             print_depth(depth + factor);
             printf("OPERATOR: %s\n", node->as.unary->op.lexeme);
+            print_depth(depth + factor);
+            printf("POSTFIX: %d\n", node->as.unary->is_postfix);
             break;
 
         case AST_IDENTIFIER:
@@ -292,6 +294,28 @@ static void print_node(AstNode *node, int depth) {
             printf("FALSE EXPR:\n");
             print_node(node->as.ternary->false_expr, depth + factor * 2);
             break;
+            
+        case AST_CAST:
+            printf("CAST:\n");
+            print_depth(depth + factor);
+            printf("RIGHT:\n");
+            print_node(node->as.cast->right, depth + factor * 2);
+            print_depth(depth + factor);
+            printf("TO: %s\n", node->as.cast->type.lexeme);
+            print_depth(depth + factor);
+            printf("POINTER LEVEL: %d\n", node->as.cast->pointer_level);
+            break;
+
+        case AST_ARR_SUBSCRIPT:
+            printf("ARR SUB:\n");
+            print_depth(depth + factor);
+            printf("BASE:\n");
+            print_node(node->as.arr_sub->base, depth + factor * 2);
+            print_depth(depth + factor);
+            printf("INDEX:\n");
+            print_node(node->as.arr_sub->index, depth + factor * 2);
+            break;
+
         default:
             printf("unknown node type: '%s'\n", ast_type_to_str(node->type));
             break;
@@ -337,14 +361,18 @@ static void free_node(AstNode *node) {
             free(node->as.var_dec->declarators[i]->identifier);
             free_node(node->as.var_dec->declarators[i]->value);
         }
+        free(node->as.var_dec->declarators);
         free(node->as.var_dec);
         free(node);
     }
     else if (node->type == AST_FUNCTION) {
-        free(node->as.func->identifier);
         for (int i = 0; i < node->as.func->body_count; i++) {
             free_node(node->as.func->body[i]);
         }
+        for (int i = 0; i < node->as.func->params_count; i++) {
+            free_node(node->as.func->params[i]);
+        }
+        free(node->as.func->identifier);
         free(node->as.func->body);
         free(node->as.func);
         free(node);
@@ -462,6 +490,17 @@ static void free_node(AstNode *node) {
         free(node->as.an_enum);
         free(node);
     }
+    else if (node->type == AST_CAST) {
+        free_node(node->as.cast->right);
+        free(node->as.cast);
+        free(node);
+    }
+    else if (node->type == AST_ARR_SUBSCRIPT) {
+        free_node(node->as.arr_sub->index);
+        free_node(node->as.arr_sub->base);
+        free(node->as.arr_sub);
+        free(node);
+    }
     else {
         printf("unknown ast_type in 'free_node': '%s'\n", ast_type_to_str(node->type));
         printf("you probably forgot to add this type to the if-else block.\n");
@@ -552,12 +591,31 @@ static AstNode *init_node(void *value, AstType type){
     else if (type == AST_UNION) {
         node->as.a_union = (AstUnion *)value;
     }
+    else if (type == AST_CAST) {
+        node->as.cast = (AstCast *)value;
+    }
+    else if (type == AST_ARR_SUBSCRIPT) {
+        node->as.arr_sub = (AstArraySubscript *)value;
+    }
     else {
         printf("unknown ast_type in 'init_node': '%s'\n", ast_type_to_str(type));
         printf("you probably forgot to add this type to the if-else block.\n");
     }
 
     return node;
+}
+
+static AstDataType token_to_ast_data_type(Token token) {
+    switch (token.type) {
+        case TOKEN_INT: return AST_TYPE_INT;
+        case TOKEN_CHAR: return AST_TYPE_CHAR;
+        case TOKEN_VOID: return AST_TYPE_VOID;
+        default: return AST_TYPE_INVALID;
+    }
+}
+
+static int is_valid_type(Token token) {
+    return token_to_ast_data_type(token) != AST_TYPE_INVALID;
 }
 
 static inline Token current_token(Parser *parser) {
@@ -679,6 +737,32 @@ static AstCallExpr *init_call_expr(char *identifier) {
     return expr;
 }
 
+static AstBinaryExpr *init_binary_node(AstNode *left, Token op, AstNode *right) {
+    AstBinaryExpr *binary = malloc(sizeof(AstBinaryExpr));
+    binary->left = left;
+    binary->op = op;
+    binary->right = right;
+
+    return binary;
+}
+
+static AstUnary *init_unary_node(AstNode *left, Token op, int is_postfix) {
+    AstUnary *unary = malloc(sizeof(AstUnary));
+    unary->left = left;
+    unary->op = op;
+    unary->is_postfix = is_postfix;
+
+    return unary;
+}
+
+static AstArraySubscript *init_array_subscript(AstNode *base, AstNode* index) {
+    AstArraySubscript *arr_sub = malloc(sizeof(AstArraySubscript));
+    arr_sub->base = base;
+    arr_sub->index = index;
+
+    return arr_sub;
+}
+
 static AstNode *parse_primary(Parser *parser) {
     Token token = current_token(parser);
     
@@ -768,24 +852,36 @@ static AstNode *parse_primary(Parser *parser) {
     }
 }
 
-static AstBinaryExpr *init_binary_node(AstNode *left, Token op, AstNode *right) {
-    AstBinaryExpr *binary = malloc(sizeof(AstBinaryExpr));
-    binary->left = left;
-    binary->op = op;
-    binary->right = right;
+static AstNode *parse_postfix_unary(Parser *parser) {
+    AstNode *expr = parse_primary(parser);
 
-    return binary;
+    while (1) {
+        if (match(TOKEN_SQUARE_BRACKET_LEFT, parser)) {
+            advance(parser);
+            AstNode *index = parse_expression(parser);
+            if (!index || !expect(TOKEN_SQUARE_BRACKET_RIGHT, parser)) {
+                return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+            }
+
+            AstArraySubscript *arr_sub = init_array_subscript(expr, index);
+            expr = init_node(arr_sub, AST_ARR_SUBSCRIPT);
+        }
+        else if (match(TOKEN_INCREMENT, parser) || match(TOKEN_DECREMENT, parser)) {
+            Token op = current_token(parser);
+            advance(parser);
+
+            AstUnary *unary = init_unary_node(expr, op, 1);
+            expr = init_node(unary, AST_UNARY);
+        }
+        else {
+            break;
+        }
+    }
+
+    return expr;
 }
 
-static AstUnary *init_unary_node(AstNode *left, Token op) {
-    AstUnary *unary = malloc(sizeof(AstUnary));
-    unary->left = left;
-    unary->op = op;
-
-    return unary;
-}
-
-static AstNode *parse_unary(Parser *parser) {
+static AstNode *parse_prefix_unary(Parser *parser) {
     if (match(TOKEN_PLUS, parser) || match(TOKEN_MINUS, parser) || 
         match(TOKEN_EXCLAMATION, parser) || match(TOKEN_BITWISE_NOT, parser) ||
         match(TOKEN_INCREMENT, parser) || match(TOKEN_DECREMENT, parser)
@@ -793,14 +889,49 @@ static AstNode *parse_unary(Parser *parser) {
         Token op = current_token(parser);
         advance(parser);
 
-        AstNode *right = parse_unary(parser);
+        AstNode *right = parse_prefix_unary(parser);
         if (!right) return NULL;
 
-        AstUnary *unary = init_unary_node(right, op);
+        AstUnary *unary = init_unary_node(right, op, 0);
         return init_node(unary, AST_UNARY);
     }
 
-    return parse_primary(parser);
+    return parse_postfix_unary(parser);
+}
+
+static AstNode *parse_cast(Parser *parser) {
+    advance(parser);
+    Token next_token = current_token(parser);
+    recede(parser);
+
+    if (match(TOKEN_LEFT_PAREN, parser) && is_valid_type(next_token)) {
+        advance(parser);
+
+        Token type = current_token(parser);
+        advance(parser);
+
+        int pointer_level = 0;
+        while (match(TOKEN_STAR, parser)) {
+            advance(parser);
+            pointer_level++;
+        }
+
+        if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        AstNode *right = parse_expression(parser);
+        if (!right) return NULL;
+
+        AstCast *cast = malloc(sizeof(AstCast));
+        cast->right = right;
+        cast->type = type;
+        cast->pointer_level = pointer_level;
+
+        return init_node(cast, AST_CAST);
+    }
+
+    return parse_prefix_unary(parser);
 }
 
 static AstNode *parse_pointer_operator(Parser *parser) {
@@ -808,15 +939,14 @@ static AstNode *parse_pointer_operator(Parser *parser) {
         Token op = current_token(parser);
         advance(parser);
 
-        AstNode *right = parse_unary(parser);
+        AstNode *right = parse_cast(parser);
         if (!right) return NULL;
 
-        AstUnary *unary = init_unary_node(right, op);
-
+        AstUnary *unary = init_unary_node(right, op, 0);
         return init_node(unary, AST_UNARY);
     }
 
-    return parse_unary(parser);
+    return parse_cast(parser);
 }
 
 static AstNode *parse_sizeof(Parser *parser) {
@@ -831,7 +961,7 @@ static AstNode *parse_sizeof(Parser *parser) {
         AstNode *right = parse_expression(parser);
         if (!right) return NULL;
 
-        AstUnary *unary = init_unary_node(right, op);
+        AstUnary *unary = init_unary_node(right, op, 0);
 
         if (!expect(TOKEN_RIGHT_PAREN, parser)) {
             return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
@@ -1140,15 +1270,6 @@ static AstVariableDeclaration *init_var_dec(AstDataType type, AstDeclarator **de
     return var_dec;
 }
 
-static AstDataType token_to_ast_data_type(Token token) {
-    switch (token.type) {
-        case TOKEN_INT: return AST_TYPE_INT;
-        case TOKEN_CHAR: return AST_TYPE_CHAR;
-        case TOKEN_VOID: return AST_TYPE_VOID;
-        default: return AST_TYPE_INVALID;
-    }
-}
-
 static int parse_qualifiers(Parser *parser) {
     int qualifiers = 0;
     int consumed;
@@ -1174,7 +1295,7 @@ static int parse_qualifiers(Parser *parser) {
     return qualifiers;
 }
 
-static AstNode *parse_var_dec(Parser *parser) {
+static AstNode *parse_variable_declaration(Parser *parser) {
     parser->is_var_dec = 1;
 
     int qualifiers = parse_qualifiers(parser);
@@ -1182,9 +1303,6 @@ static AstNode *parse_var_dec(Parser *parser) {
     Token type_token = current_token(parser);
     AstDataType type = token_to_ast_data_type(type_token);
     advance(parser);
-
-    // int z;
-    // int *****(*(x)) = *(&z);
 
     AstDeclarator **declarators = malloc(sizeof(AstDeclarator));
     int declarator_count = 0;
@@ -1255,10 +1373,6 @@ static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count
     func->is_void_params = is_void_params;
 
     return func;
-}
-
-static int is_valid_type(Token token) {
-    return token_to_ast_data_type(token) != AST_TYPE_INVALID;
 }
 
 static AstFunctionParameter *init_func_parameter(char *id, AstDataType type, int constant) {
@@ -1495,7 +1609,7 @@ static AstNode *parse_type_statement(Parser *parser) {
             return parser_err(PARSE_ERR_VOID_NOT_ALLOWED, parser);
         }
 
-        return parse_var_dec(parser);
+        return parse_variable_declaration(parser);
     }
     else if (match(TOKEN_SEMICOLON, parser)) {
         recede(parser);
@@ -1506,7 +1620,7 @@ static AstNode *parse_type_statement(Parser *parser) {
             return parser_err(PARSE_ERR_VOID_NOT_ALLOWED, parser);
         }
 
-        return parse_var_dec(parser);
+        return parse_variable_declaration(parser);
     }
     else {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
@@ -1932,7 +2046,7 @@ static AstNode *parse_struct_or_union(Parser *parser) {
     return node;
 }
 
-static AstNode *init_enum(char *name, AstEnumValue **values, int value_count) {
+static AstEnum *init_enum(char *name, AstEnumValue **values, int value_count) {
     AstEnum *an_enum = malloc(sizeof(AstEnum));
     an_enum->name = strdup(name);
     an_enum->values = values;

@@ -28,6 +28,8 @@ typedef enum {
     AST_ENUM,
     AST_ENUM_VALUE,
     AST_UNION,
+    AST_CAST,
+    AST_ARR_SUBSCRIPT,
 } AstType;
 
 typedef enum {
@@ -56,14 +58,14 @@ typedef struct {
 typedef struct {
     char       *identifier;
     AstNode    *value;
-    int pointer_level;
+    int         pointer_level;
 } AstDeclarator;
 
 typedef struct {
-    AstDataType type;
+    AstDataType     type;
     AstDeclarator **declarators;
-    int declarator_count;
-    int qualifiers; // bitmask for decl_flags
+    int             declarator_count;
+    int             qualifiers; // bitmask for decl_flags
 } AstVariableDeclaration;
 
 typedef struct {
@@ -75,38 +77,44 @@ typedef struct {
 } AstIdentifier;
 
 typedef struct {
-    char *name;
+    AstNode *right;
+    Token    type;
+    int      pointer_level;
+} AstCast;
+
+typedef struct {
+    char       *name;
     AstDataType type;
-    int constant;
+    int         constant;
 } AstFunctionParameter;
 
 typedef struct {
-    char *name;
+    char     *name;
     AstNode **fields;
-    int field_count;
+    int       field_count;
 } AstStruct;
 
 typedef struct {
-    char *name;
+    char     *name;
     AstNode **fields;
-    int field_count;
+    int       field_count;
 } AstUnion;
 
 typedef struct {
     char *name;
-    int value;
-    int explicit_value;
+    int   value;
+    int   explicit_value;
 } AstEnumValue;
 
 typedef struct {
-    char *name;
+    char          *name;
     AstEnumValue **values;
-    int value_count;
+    int            value_count;
 } AstEnum;
 
 typedef struct {
-    AstNode              **body;
-    int                    body_count;
+    AstNode **body;
+    int       body_count;
 } AstBlock;
 
 typedef struct {
@@ -169,7 +177,13 @@ typedef struct {
 typedef struct {
     AstNode *left;
     Token    op;
+    int      is_postfix;
 } AstUnary;
+
+typedef struct {
+    AstNode *base;
+    AstNode *index;
+} AstArraySubscript;
 
 typedef struct {
     AstNode *initializer;
@@ -212,6 +226,8 @@ struct AstNode {
         AstEnum                *an_enum;
         AstEnumValue           *enum_val;
         AstUnion               *a_union;
+        AstCast                *cast;
+        AstArraySubscript      *arr_sub;
     } as;
 };
 
