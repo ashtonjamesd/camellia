@@ -1,3 +1,8 @@
+union Union {
+    int a;
+    int b;
+};
+
 struct Point {
     const int x;
     const int y;

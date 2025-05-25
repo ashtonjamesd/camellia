@@ -27,6 +27,7 @@ typedef enum {
     AST_STRUCT,
     AST_ENUM,
     AST_ENUM_VALUE,
+    AST_UNION,
 } AstType;
 
 typedef enum {
@@ -84,6 +85,12 @@ typedef struct {
     AstNode **fields;
     int field_count;
 } AstStruct;
+
+typedef struct {
+    char *name;
+    AstNode **fields;
+    int field_count;
+} AstUnion;
 
 typedef struct {
     char *name;
@@ -204,6 +211,7 @@ struct AstNode {
         AstStruct              *a_struct;
         AstEnum                *an_enum;
         AstEnumValue           *enum_val;
+        AstUnion               *a_union;
     } as;
 };
 

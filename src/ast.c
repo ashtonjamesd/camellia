@@ -38,6 +38,8 @@ static void print_depth(int depth) {
 static void print_node(AstNode *node, int depth) {
     print_depth(depth);
 
+    int factor = 2;
+
     switch (node->type) {
         case AST_LITERAL_INT:
             printf("LITERAL INT: %d\n", node->as.lit_int->value);
@@ -49,11 +51,11 @@ static void print_node(AstNode *node, int depth) {
 
         case AST_VARIABLE_DECLARATION:
             printf("VARIABLE DECLARATION:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("TYPE: %s\n", data_type_to_str(node->as.var_dec->type));
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("DECLARATORS (%d):\n", node->as.var_dec->declarator_count);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("QUALIFIERS:");
             if (node->as.var_dec->qualifiers & DECL_STATIC)   printf(" static");
             if (node->as.var_dec->qualifiers & DECL_CONST)    printf(" const");
@@ -61,16 +63,16 @@ static void print_node(AstNode *node, int depth) {
             printf("\n");
 
             for (int i = 0; i < node->as.var_dec->declarator_count; i++) {
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("DECLARATOR:\n");
-                print_depth(depth + 3);
+                print_depth(depth + factor * 3);
                 printf("IDENTIFIER: %s\n", node->as.var_dec->declarators[i]->identifier);
-                print_depth(depth + 3);
+                print_depth(depth + factor * 3);
                 printf("POINTER LEVEL: %d\n", node->as.var_dec->declarators[i]->pointer_level);
                 if (node->as.var_dec->declarators[i]->value) {
-                    print_depth(depth + 3);
+                    print_depth(depth + factor * 3);
                     printf("VALUE:\n");
-                    print_node(node->as.var_dec->declarators[i]->value, depth + 4);
+                    print_node(node->as.var_dec->declarators[i]->value, depth + factor * 4);
                 }
             }
             break;
@@ -85,53 +87,53 @@ static void print_node(AstNode *node, int depth) {
 
         case AST_FUNCTION:
             printf("FUNCTION:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("IDENTIFIER: %s\n", node->as.func->identifier);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("RETURN TYPE: %s\n", data_type_to_str(node->as.func->returnType));
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("IS VOID PARAMS: %d\n", node->as.func->is_void_params);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("PARAMETERS (%d):\n", node->as.func->params_count);
             for (int i = 0; i < node->as.func->params_count; i++) {
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("ID: %s\n", node->as.func->params[i]->name);
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("TYPE: %s\n", data_type_to_str(node->as.func->params[i]->type));
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("CONST: %d\n", node->as.func->params[i]->constant);
             }
 
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("BODY (%d):\n", node->as.func->body_count);
             for (int i = 0; i < node->as.func->body_count; i++) {
-                print_node(node->as.func->body[i], depth + 2);
+                print_node(node->as.func->body[i], depth + factor * 2);
             }
             break;
 
         case AST_RETURN:
             printf("RETURN:\n");
-            print_node(node->as.ret->value, depth + 1);
+            print_node(node->as.ret->value, depth + factor);
             break;
 
         case AST_BINARY:
             printf("BINARY EXPRESSION:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("LEFT:\n");
-            print_node(node->as.binary->left, depth + 2);
-            print_depth(depth + 1);
+            print_node(node->as.binary->left, depth + factor * 2);
+            print_depth(depth + factor);
             printf("OPERATOR: %s\n", node->as.binary->op.lexeme);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("RIGHT:\n");
-            print_node(node->as.binary->right, depth + 2);
+            print_node(node->as.binary->right, depth + factor * 2);
             break;
 
         case AST_UNARY:
             printf("UNARY EXPRESSION:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("LEFT:\n");
-            print_node(node->as.unary->left, depth + 2);
-            print_depth(depth + 1);
+            print_node(node->as.unary->left, depth +  factor * 2);
+            print_depth(depth + factor);
             printf("OPERATOR: %s\n", node->as.unary->op.lexeme);
             break;
 
@@ -141,144 +143,154 @@ static void print_node(AstNode *node, int depth) {
 
         case AST_CALL_EXPR:
             printf("CALL EXPRESSION:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("FUNCTION: %s\n", node->as.call->identifier);
             break;
 
         case AST_ASSIGNMENT:
             printf("ASSIGNMENT:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("IDENTIFIER: %s\n", node->as.assign->identifier);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("VALUE:\n");
-            print_node(node->as.assign->value, depth + 2);
+            print_node(node->as.assign->value, depth + factor * 2);
             break;
 
         case AST_IF:
             printf("IF STATEMENT:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("CONDITION:\n");
-            print_node(node->as.if_stmt->condition, depth + 2);
-            print_depth(depth + 2);
+            print_node(node->as.if_stmt->condition, depth + factor * 2);
+            print_depth(depth + factor * 2);
             printf("BODY (%d):\n", node->as.if_stmt->body_count);
             for (int i = 0; i < node->as.if_stmt->body_count; i++) {
-                print_node(node->as.if_stmt->body[i], depth + 3);
+                print_node(node->as.if_stmt->body[i], depth + factor * 3);
             }
             if (node->as.if_stmt->else_body) {
                 print_depth(depth);
                 printf("ELSE:\n");
-                print_depth(depth + 1);
+                print_depth(depth + factor);
                 printf("BODY (%d):\n", node->as.if_stmt->else_body_count);
                 for (int i = 0; i < node->as.if_stmt->else_body_count; i++) {
-                    print_node(node->as.if_stmt->else_body[i], depth + 2);
+                    print_node(node->as.if_stmt->else_body[i], depth + factor * 2);
                 }
             }
             break;
 
         case AST_WHILE:
             printf("WHILE STATEMENT:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("CONDITION:\n");
-            print_node(node->as.while_stmt->condition, depth + 2);
-            print_depth(depth + 2);
+            print_node(node->as.while_stmt->condition, depth + factor * 2);
+            print_depth(depth + factor * 2);
             printf("BODY (%d):\n", node->as.while_stmt->body_count);
             for (int i = 0; i < node->as.while_stmt->body_count; i++) {
-                print_node(node->as.while_stmt->body[i], depth + 3);
+                print_node(node->as.while_stmt->body[i], depth + factor * 3);
             }
             break;
 
         case AST_FOR:
             printf("FOR STATEMENT:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             
             printf("INITIALIZER:\n");
             if (node->as.for_stmt->initializer) {
-                print_node(node->as.for_stmt->initializer, depth + 2);
+                print_node(node->as.for_stmt->initializer, depth + factor * 2);
             } else {
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("NONE\n");
             }
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             
             printf("CONDITION:\n");
             if (node->as.for_stmt->condition) {
-                print_node(node->as.for_stmt->condition, depth + 2);
+                print_node(node->as.for_stmt->condition, depth + factor * 2);
             } else {
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("NONE\n");
             }
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             
             printf("ALTERATION:\n");
             if (node->as.for_stmt->alteration) {
-                print_node(node->as.for_stmt->alteration, depth + 2);
+                print_node(node->as.for_stmt->alteration, depth + factor * 2);
             } else {
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("NONE\n");
             }
-            print_node(node->as.for_stmt->block, depth + 1);
+            print_node(node->as.for_stmt->block, depth + factor);
             break;
         
         case AST_BLOCK:
             printf("BODY (%d):\n", node->as.block->body_count);
             for (int i = 0; i < node->as.block->body_count; i++) {
-                print_node(node->as.block->body[i], depth + 1);
+                print_node(node->as.block->body[i], depth + factor);
             }
             break;
 
         case AST_DO_WHILE:
             printf("DO WHILE STATEMENT:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("CONDITION:\n");
-            print_node(node->as.while_stmt->condition, depth + 2);
-            print_depth(depth + 1);
+            print_node(node->as.while_stmt->condition, depth + factor * 2);
+            print_depth(depth + factor);
             printf("BODY (%d):\n", node->as.do_while->block->body_count);
             for (int i = 0; i < node->as.do_while->block->body_count; i++) {
-                print_node(node->as.do_while->block->body[i], depth + 2);
+                print_node(node->as.do_while->block->body[i], depth + factor * 2);
             }
             break;
 
         case AST_STRUCT:
             printf("STRUCT:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("NAME: %s\n", node->as.a_struct->name);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("FIELDS: (%d)\n", node->as.a_struct->field_count);
             for (int i = 0; i < node->as.a_struct->field_count; i++) {
-                print_node(node->as.a_struct->fields[i], depth + 2);
+                print_node(node->as.a_struct->fields[i], depth + factor * 2);
             }
-            printf("\n");
+            break;
+
+        case AST_UNION:
+            printf("UNION:\n");
+            print_depth(depth + factor);
+            printf("NAME: %s\n", node->as.a_union->name);
+            print_depth(depth + factor);
+            printf("FIELDS: (%d)\n", node->as.a_union->field_count);
+            for (int i = 0; i < node->as.a_union->field_count; i++) {
+                print_node(node->as.a_union->fields[i], depth + factor * 2);
+            }
             break;
 
         case AST_ENUM:
             printf("ENUM:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("NAME: %s\n", node->as.an_enum->name);
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("VALUES (%d):\n", node->as.an_enum->value_count);
             for (int i = 0; i < node->as.an_enum->value_count; i++) {
-                print_depth(depth + 2);
+                print_depth(depth + factor * 2);
                 printf("ENUM VALUE %d:\n", i);
-                print_depth(depth + 3);
+                print_depth(depth + factor * 3);
                 printf("NAME: %s\n", node->as.an_enum->values[i]->name);
-                print_depth(depth + 3);
+                print_depth(depth + factor * 3);
                 printf("VALUE: %d\n", node->as.an_enum->values[i]->value);
-                print_depth(depth + 3);
+                print_depth(depth + factor * 3);
                 printf("EXPLICIT: %d\n", node->as.an_enum->values[i]->explicit_value);
             }
             break;
 
         case AST_TERNARY:
             printf("TERNARY:\n");
-            print_depth(depth + 1);
+            print_depth(depth + factor);
             printf("CONDITION:\n");
-            print_node(node->as.ternary->condition, depth + 2);
-            print_depth(depth + 1);
+            print_node(node->as.ternary->condition, depth + factor * 2);
+            print_depth(depth + factor);
             printf("TRUE EXPR:\n");
-            print_node(node->as.ternary->true_expr, depth + 2);
-            print_depth(depth + 1);
+            print_node(node->as.ternary->true_expr, depth + factor * 2);
+            print_depth(depth + factor);
             printf("FALSE EXPR:\n");
-            print_node(node->as.ternary->false_expr, depth + 2);
+            print_node(node->as.ternary->false_expr, depth + factor * 2);
             break;
         default:
             printf("unknown node type: '%s'\n", ast_type_to_str(node->type));
@@ -433,6 +445,23 @@ static void free_node(AstNode *node) {
         free(node->as.a_struct);
         free(node);
     }
+    else if (node->type == AST_UNION) {
+        for (int i = 0; i < node->as.a_union->field_count; i++) {
+            free_node(node->as.a_union->fields[i]);
+        }
+        free(node->as.a_union->name);
+        free(node->as.a_union);
+        free(node);
+    }
+    else if (node->type == AST_ENUM) {
+        for (int i = 0; i < node->as.an_enum->value_count; i++) {
+            free(node->as.an_enum->values[i]->name);
+            free(node->as.an_enum->values[i]);
+        }
+        free(node->as.an_enum->name);
+        free(node->as.an_enum);
+        free(node);
+    }
     else {
         printf("unknown ast_type in 'free_node': '%s'\n", ast_type_to_str(node->type));
         printf("you probably forgot to add this type to the if-else block.\n");
@@ -519,6 +548,9 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_ENUM) {
         node->as.an_enum = (AstEnum *)value;
+    }
+    else if (type == AST_UNION) {
+        node->as.a_union = (AstUnion *)value;
     }
     else {
         printf("unknown ast_type in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -1837,10 +1869,25 @@ static AstStruct *init_struct(char *name, AstNode **fields, int field_count) {
     return a_struct;
 }
 
-static AstNode *parse_struct(Parser *parser) {
+static AstUnion *init_union(char *name, AstNode **fields, int field_count) {
+    AstUnion *a_union = malloc(sizeof(AstUnion));
+    a_union->name = strdup(name);
+    a_union->fields = fields;
+    a_union->field_count = field_count;
+
+    return a_union;
+}
+
+static AstNode *parse_struct_or_union(Parser *parser) {
+    int is_union = 0;
+    if (match(TOKEN_UNION, parser)) {
+        is_union = 1;
+    }
     advance(parser);
 
-    Token struct_name_token = current_token(parser);
+    printf("%s", current_token(parser).lexeme);
+
+    Token name_token = current_token(parser);
     if (!match(TOKEN_IDENTIFIER, parser)) {
         return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
     }
@@ -1873,8 +1920,14 @@ static AstNode *parse_struct(Parser *parser) {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
 
-    AstStruct *a_struct = init_struct(struct_name_token.lexeme, members, member_count);
-    AstNode *node = init_node(a_struct, AST_STRUCT);
+    AstNode *node;
+    if (!is_union) {
+        AstStruct *a_struct = init_struct(name_token.lexeme, members, member_count);
+        node = init_node(a_struct, AST_STRUCT);
+    } else {
+        AstUnion *a_union = init_union(name_token.lexeme, members, member_count);
+        node = init_node(a_union, AST_UNION);
+    }
 
     return node;
 }
@@ -1884,7 +1937,6 @@ static AstNode *init_enum(char *name, AstEnumValue **values, int value_count) {
     an_enum->name = strdup(name);
     an_enum->values = values;
     an_enum->value_count = value_count;
-
 
     return an_enum;
 }
@@ -1997,10 +2049,13 @@ static AstNode *parse_statement(Parser *parser) {
         return parse_do_while(parser);
     }
     else if (match(TOKEN_STRUCT, parser)) {
-        return parse_struct(parser);
+        return parse_struct_or_union(parser);
     }
     else if (match(TOKEN_ENUM, parser)) {
         return parse_enum(parser);
+    }
+    else if (match(TOKEN_UNION, parser)) {
+        return parse_struct_or_union(parser);
     }
     else if (match(TOKEN_IDENTIFIER, parser)) {
         advance(parser);
