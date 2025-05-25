@@ -6,7 +6,7 @@
 #include "symtab.h"
 #include "utils.h"
 
-void analyze_node(AstNode *node, Analyzer *analyzer);
+static void analyze_node(AstNode *node, Analyzer *analyzer);
 
 Analyzer *init_analyzer(AstNode **tree, int count) {
     Analyzer *analyzer = malloc(sizeof(Analyzer));
@@ -19,6 +19,7 @@ Analyzer *init_analyzer(AstNode **tree, int count) {
     analyzer->variable_symbols->capacity = 1;
     analyzer->variable_symbols->count = 0;
     analyzer->variable_symbols->symbols = malloc(sizeof(VariableSymbol *));
+    analyzer->err = NO_ANALYZE_ERR;
 
     analyzer->node_count = count;
     analyzer->tree = tree;
@@ -31,13 +32,18 @@ void free_analyzer(Analyzer *analyzer) {
     free(analyzer);
 }
 
-void analyze_function(AstFunctionDeclaration *func, Analyzer *analyzer) {
+static void err_undefined_identifier(char *name, Analyzer *analyzer) {
+    analyzer->err = ANALYZE_ERR_UNDEFINED_IDENTIFIER;
+    printf("undefined identifier '%s'", name);
+}
+
+static void analyze_function(AstFunctionDeclaration *func, Analyzer *analyzer) {
     for (int i = 0; i < func->body_count; i++) {
         analyze_node(func->body[i], analyzer);
     }
 }
 
-void add_variable_symbol(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
+static void add_variable_symbol(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
     if (analyzer->variable_symbols->count >= analyzer->variable_symbols->capacity) {
         analyzer->variable_symbols->capacity *= 2;
         analyzer->variable_symbols->symbols = realloc(analyzer->variable_symbols->symbols, sizeof(VariableSymbol *) * analyzer->variable_symbols->capacity);
@@ -49,7 +55,7 @@ void add_variable_symbol(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
     analyzer->variable_symbols->symbols[analyzer->variable_symbols->count++] = symbol;
 }
 
-VariableSymbol *get_variable_symbol(char *symbol, Analyzer *analyzer) {
+static VariableSymbol *get_variable_symbol(char *symbol, Analyzer *analyzer) {
     for (int i = 0; i < analyzer->variable_symbols->count; i++) {
         VariableSymbol *var = analyzer->variable_symbols->symbols[i];
 
@@ -61,16 +67,23 @@ VariableSymbol *get_variable_symbol(char *symbol, Analyzer *analyzer) {
     return NULL;
 }
 
-void analyze_variable_declaration(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
-    // if (get_variable_symbol(var_dec->identifier, analyzer)) {
-    //     printf("Redefinition of variable '%s'\n", var_dec->identifier);
-    //     return;
-    // }
+static void err(AnalyzerErr err, Analyzer *analyzer) {
+    analyzer->err = err;
+}
+
+static void analyze_variable_declaration(AstVariableDeclaration *var_dec, Analyzer *analyzer) {
+    for (int i = 0; i < var_dec->declarator_count; i++) {
+        if (get_variable_symbol(var_dec->declarators[i]->identifier, analyzer)) {
+            printf("Redefinition of variable '%s'\n", var_dec->declarators[i]->identifier);
+            err(ANALYZE_ERR_UNDEFINED_IDENTIFIER, analyzer);
+            return;
+        }
+    }
 
     add_variable_symbol(var_dec, analyzer);
 }
 
-void analyze_node(AstNode *node, Analyzer *analyzer) {
+static void analyze_node(AstNode *node, Analyzer *analyzer) {
     if (node->type == AST_VARIABLE_DECLARATION) {
         analyze_variable_declaration(node->as.var_dec, analyzer);
     }
@@ -86,5 +99,4 @@ void analyze_ast(Analyzer *analyzer) {
     for (int i = 0; i < analyzer->node_count; i++) {
         analyze_node(analyzer->tree[i], analyzer);
     }
-
 }

@@ -6,8 +6,6 @@ int main() {
     const int *d = &y, e = 5;
     static volatile char *p, q = 'z', **r = &p;
     int *****x = NULL, y = 10, *z = &y;
-    
-    
 
     return 0;
 }

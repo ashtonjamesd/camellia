@@ -36,6 +36,8 @@ static SymbolToken KEYWORDS[] = {
     {"const", TOKEN_CONST},
     {"asm", TOKEN_ASM},
     {"volatile", TOKEN_VOLATILE},
+    {"inline", TOKEN_INLINE},
+    {"enum", TOKEN_ENUM},
 };
 
 static SymbolToken SINGLE_SYMBOLS[] = {
@@ -166,8 +168,9 @@ static inline void recede(Lexer *lexer) {
     lexer->current--;
 }
 
-static inline void lexer_err(LexErr error, Lexer *lexer) {
+static inline Token *lexer_err(LexErr error, Lexer *lexer) {
     lexer->err = error;
+    return NULL;
 }
 
 static Token *parse_symbol(Lexer *lexer) {
@@ -199,8 +202,7 @@ static Token *parse_symbol(Lexer *lexer) {
         }
     }
 
-    lexer_err(INVALID_SYMBOL, lexer);
-    return NULL;
+    return lexer_err(INVALID_SYMBOL, lexer);
 }
 
 static inline int is_valid_esc(char c) {
@@ -223,8 +225,7 @@ static Token* parse_char(Lexer *lexer) {
     char *str;
     char esc = current_char(lexer);
     if (esc == '\'') {
-        lexer_err(EMPTY_CHAR_LITERAL, lexer);
-        return NULL;
+        return lexer_err(EMPTY_CHAR_LITERAL, lexer);
     }
 
     if (esc == '\\') {
@@ -232,8 +233,7 @@ static Token* parse_char(Lexer *lexer) {
 
         char c = current_char(lexer);
         if (!is_valid_esc(c)) {
-            lexer_err(INVALID_ESCAPE_SEQUENCE, lexer);
-            return NULL;
+            return lexer_err(INVALID_ESCAPE_SEQUENCE, lexer);
         }
 
         str = (char *)malloc(3);
@@ -249,8 +249,7 @@ static Token* parse_char(Lexer *lexer) {
 
     advance(lexer);
     if (current_char(lexer) != '\'') {
-        lexer_err(TOO_MANY_CHARS_IN_CHAR_LITERAL, lexer);
-        return NULL;
+        return lexer_err(TOO_MANY_CHARS_IN_CHAR_LITERAL, lexer);
     }
 
     Token *token = init_token(str, TOKEN_CHAR_LITERAL, lexer);
@@ -268,8 +267,7 @@ static Token* parse_string(Lexer *lexer) {
         if (c == '\\') {
             advance(lexer);
             if (!is_valid_esc(current_char(lexer))) {
-                lexer_err(INVALID_ESCAPE_SEQUENCE, lexer);
-                return NULL;
+                return lexer_err(INVALID_ESCAPE_SEQUENCE, lexer);
             }
         }
         else if (c == '\"') {
@@ -280,8 +278,7 @@ static Token* parse_string(Lexer *lexer) {
     }
 
     if (current_char(lexer) == '\0') {
-        lexer_err(UNTERMINATED_STRING_LITERAL, lexer);
-        return NULL;
+        return lexer_err(UNTERMINATED_STRING_LITERAL, lexer);
     }
     
     int len = lexer->current- start;
@@ -301,55 +298,75 @@ static inline int is_valid_binary_char(char c) {
 
 static Token* parse_numeric(Lexer *lexer) {
     int start = lexer->current;
-
-    int is_decimal = 0;
     TokenType type = TOKEN_INTEGER_LITERAL;
 
-    while (isdigit(current_char(lexer)) || (match('.', lexer))) {
-        if (match('0', lexer)) {
-            advance(lexer);
-
-            if (match('x', lexer) || match('X', lexer)) {
-                type = TOKEN_HEX_LITERAL;
-                advance(lexer);
-
-                while (isxdigit(current_char(lexer))) {
-                    advance(lexer);
-                }
-            }
-            else if (match('b', lexer) || match('B', lexer)) {
-                type = TOKEN_BINARY_LITERAL;
-                advance(lexer);
-
-                while (match('1', lexer) || match('0', lexer)) {
-                    advance(lexer);
-                }
-            }
-            else if (isdigit(current_char(lexer))) {
-                while (current_char(lexer) >= '0' && current_char(lexer) <= '7') {
-                    advance(lexer);
-                }
-                type = TOKEN_OCTAL_LITERAL;
-            }
-            else {
-                recede(lexer);
-            }
-        }
-
-        if ((match('.', lexer)) && is_decimal) {
-            lexer_err(INVALID_NUMERIC_TOKEN, lexer);
-            return NULL;
-        }
-        else if ((match('.', lexer))) {
-            is_decimal = 1;
-            type = TOKEN_FLOAT_LITERAL;
-        }
-
+    if (current_char(lexer) == '0') {
         advance(lexer);
+
+        if (match('x', lexer) || match('X', lexer)) {
+            advance(lexer);
+            type = TOKEN_HEX_LITERAL;
+
+            if (!isxdigit(current_char(lexer)))
+                return lexer_err(INVALID_NUMERIC_TOKEN, lexer);
+
+            while (isxdigit(current_char(lexer))) {
+                advance(lexer);
+            }
+        }
+        else if (match('b', lexer) || match('B', lexer)) {
+            advance(lexer);
+            type = TOKEN_BINARY_LITERAL;
+
+            if (!(match('0', lexer) || match('1', lexer)))
+                return lexer_err(INVALID_NUMERIC_TOKEN, lexer);
+
+            while (match('0', lexer) || match('1', lexer)) {
+                advance(lexer);
+            }
+        }
+        else if (match('.', lexer)) {
+            advance(lexer);
+            type = TOKEN_FLOAT_LITERAL;
+
+            if (!isdigit(current_char(lexer)))
+                return lexer_err(INVALID_NUMERIC_TOKEN, lexer);
+
+            while (isdigit(current_char(lexer))) {
+                advance(lexer);
+            }
+        }
+        else if (isdigit(current_char(lexer))) {
+            type = TOKEN_OCTAL_LITERAL;
+
+            while (current_char(lexer) >= '0' && current_char(lexer) <= '7') {
+                advance(lexer);
+            }
+        }
+        else {
+            type = TOKEN_INTEGER_LITERAL;
+        }
+    }
+    else {
+        while (isdigit(current_char(lexer))) {
+            advance(lexer);
+        }
+
+        if (match('.', lexer)) {
+            advance(lexer);
+            type = TOKEN_FLOAT_LITERAL;
+
+            if (!isdigit(current_char(lexer)))
+                return lexer_err(INVALID_NUMERIC_TOKEN, lexer);
+
+            while (isdigit(current_char(lexer))) {
+                advance(lexer);
+            }
+        }
     }
 
     int len = lexer->current - start;
-    char *lexeme = (char *)malloc(len + 1);
+    char *lexeme = malloc(len + 1);
     strncpy(lexeme, lexer->source + start, len);
     lexeme[len] = '\0';
 

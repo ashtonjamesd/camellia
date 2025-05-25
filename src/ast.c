@@ -50,12 +50,10 @@ static void print_node(AstNode *node, int depth) {
         case AST_VARIABLE_DECLARATION:
             printf("VARIABLE DECLARATION:\n");
             print_depth(depth + 1);
-            printf("TYPE: %s\n", ast_type_to_str(node->as.var_dec->type));
+            printf("TYPE: %s\n", data_type_to_str(node->as.var_dec->type));
             print_depth(depth + 1);
             printf("DECLARATORS (%d):\n", node->as.var_dec->declarator_count);
             print_depth(depth + 1);
-            // printf("QUALIFIERS: %d\n", node->as.var_dec->qualifiers);
-            // print_depth(depth + 1);
             printf("QUALIFIERS:");
             if (node->as.var_dec->qualifiers & DECL_STATIC)   printf(" static");
             if (node->as.var_dec->qualifiers & DECL_CONST)    printf(" const");
@@ -91,7 +89,8 @@ static void print_node(AstNode *node, int depth) {
             printf("IDENTIFIER: %s\n", node->as.func->identifier);
             print_depth(depth + 1);
             printf("RETURN TYPE: %s\n", data_type_to_str(node->as.func->returnType));
-
+            print_depth(depth + 1);
+            printf("IS VOID PARAMS: %d\n", node->as.func->is_void_params);
             print_depth(depth + 1);
             printf("PARAMETERS (%d):\n", node->as.func->params_count);
             for (int i = 0; i < node->as.func->params_count; i++) {
@@ -191,18 +190,81 @@ static void print_node(AstNode *node, int depth) {
         case AST_FOR:
             printf("FOR STATEMENT:\n");
             print_depth(depth + 1);
+            
             printf("INITIALIZER:\n");
-            print_node(node->as.for_stmt->initializer, depth + 2);
+            if (node->as.for_stmt->initializer) {
+                print_node(node->as.for_stmt->initializer, depth + 2);
+            } else {
+                print_depth(depth + 2);
+                printf("NONE\n");
+            }
+            print_depth(depth + 1);
+            
+            printf("CONDITION:\n");
+            if (node->as.for_stmt->condition) {
+                print_node(node->as.for_stmt->condition, depth + 2);
+            } else {
+                print_depth(depth + 2);
+                printf("NONE\n");
+            }
+            print_depth(depth + 1);
+            
+            printf("ALTERATION:\n");
+            if (node->as.for_stmt->alteration) {
+                print_node(node->as.for_stmt->alteration, depth + 2);
+            } else {
+                print_depth(depth + 2);
+                printf("NONE\n");
+            }
+            print_node(node->as.for_stmt->block, depth + 1);
+            break;
+        
+        case AST_BLOCK:
+            printf("BODY (%d):\n", node->as.block->body_count);
+            for (int i = 0; i < node->as.block->body_count; i++) {
+                print_node(node->as.block->body[i], depth + 1);
+            }
+            break;
+
+        case AST_DO_WHILE:
+            printf("DO WHILE STATEMENT:\n");
             print_depth(depth + 1);
             printf("CONDITION:\n");
-            print_node(node->as.for_stmt->condition, depth + 2);
+            print_node(node->as.while_stmt->condition, depth + 2);
             print_depth(depth + 1);
-            printf("ALTERATION:\n");
-            print_node(node->as.for_stmt->alteration, depth + 2);
+            printf("BODY (%d):\n", node->as.do_while->block->body_count);
+            for (int i = 0; i < node->as.do_while->block->body_count; i++) {
+                print_node(node->as.do_while->block->body[i], depth + 2);
+            }
+            break;
+
+        case AST_STRUCT:
+            printf("STRUCT:\n");
             print_depth(depth + 1);
-            printf("BODY (%d):\n", node->as.for_stmt->body_count);
-            for (int i = 0; i < node->as.for_stmt->body_count; i++) {
-                print_node(node->as.for_stmt->body[i], depth + 2);
+            printf("NAME: %s\n", node->as.a_struct->name);
+            print_depth(depth + 1);
+            printf("FIELDS: (%d)\n", node->as.a_struct->field_count);
+            for (int i = 0; i < node->as.a_struct->field_count; i++) {
+                print_node(node->as.a_struct->fields[i], depth + 2);
+            }
+            printf("\n");
+            break;
+
+        case AST_ENUM:
+            printf("ENUM:\n");
+            print_depth(depth + 1);
+            printf("NAME: %s\n", node->as.an_enum->name);
+            print_depth(depth + 1);
+            printf("VALUES (%d):\n", node->as.an_enum->value_count);
+            for (int i = 0; i < node->as.an_enum->value_count; i++) {
+                print_depth(depth + 2);
+                printf("ENUM VALUE %d:\n", i);
+                print_depth(depth + 3);
+                printf("NAME: %s\n", node->as.an_enum->values[i]->name);
+                print_depth(depth + 3);
+                printf("VALUE: %d\n", node->as.an_enum->values[i]->value);
+                print_depth(depth + 3);
+                printf("EXPLICIT: %d\n", node->as.an_enum->values[i]->explicit_value);
             }
             break;
 
@@ -342,9 +404,7 @@ static void free_node(AstNode *node) {
         free(node);
     }
     else if (node->type == AST_FOR) {
-        for (int i = 0; i < node->as.for_stmt->body_count; i++) {
-            free_node(node->as.for_stmt->body[i]);
-        }
+        free_node(node->as.for_stmt->block);
 
         free_node(node->as.for_stmt->initializer);
         free_node(node->as.for_stmt->condition);
@@ -353,11 +413,24 @@ static void free_node(AstNode *node) {
         free(node->as.for_stmt);
         free(node);
     }
+    else if (node->type == AST_BLOCK) {
+        for (int i = 0; i < node->as.block->body_count; i++) {
+            free_node(node->as.block->body[i]);
+        }
+    }
     else if (node->type == AST_TERNARY) {
         free(node->as.ternary->condition);
         free(node->as.ternary->true_expr);
         free(node->as.ternary->false_expr);
         free(node->as.ternary);
+        free(node);
+    }
+    else if (node->type == AST_STRUCT) {
+        for (int i = 0; i < node->as.a_struct->field_count; i++) {
+            free_node(node->as.a_struct->fields[i]);
+        }
+        free(node->as.a_struct->name);
+        free(node->as.a_struct);
         free(node);
     }
     else {
@@ -434,6 +507,18 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_TERNARY) {
         node->as.ternary = (AstTernary *)value;
+    }
+    else if (type == AST_BLOCK) {
+        node->as.block = (AstBlock *)value;
+    }
+    else if (type == AST_DO_WHILE) {
+        node->as.do_while = (AstDoWhile *)value;
+    }
+    else if (type == AST_STRUCT) {
+        node->as.a_struct = (AstStruct *)value;
+    }
+    else if (type == AST_ENUM) {
+        node->as.an_enum = (AstEnum *)value;
     }
     else {
         printf("unknown ast_type in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -535,16 +620,16 @@ static void pretty_error(Parser *parser) {
 }
 
 
-static int is_literal_or_ident(Parser *parser) {
-    return match(TOKEN_INTEGER_LITERAL, parser)
-        || match(TOKEN_CHAR_LITERAL, parser)
-        || match(TOKEN_FLOAT_LITERAL, parser)
-        || match(TOKEN_OCTAL_LITERAL, parser)
-        || match(TOKEN_BINARY_LITERAL, parser)
-        || match(TOKEN_STRING_LITERAL, parser)
-        || match(TOKEN_HEX_LITERAL, parser)
-        || match(TOKEN_IDENTIFIER, parser);
-}
+// static int is_literal_or_ident(Parser *parser) {
+//     return match(TOKEN_INTEGER_LITERAL, parser)
+//         || match(TOKEN_CHAR_LITERAL, parser)
+//         || match(TOKEN_FLOAT_LITERAL, parser)
+//         || match(TOKEN_OCTAL_LITERAL, parser)
+//         || match(TOKEN_BINARY_LITERAL, parser)
+//         || match(TOKEN_STRING_LITERAL, parser)
+//         || match(TOKEN_HEX_LITERAL, parser)
+//         || match(TOKEN_IDENTIFIER, parser);
+// }
 
 static inline int expect(TokenType type, Parser *parser) {
     if (parser->tokens[parser->current].type == type) {
@@ -564,6 +649,18 @@ static AstCallExpr *init_call_expr(char *identifier) {
 
 static AstNode *parse_primary(Parser *parser) {
     Token token = current_token(parser);
+    
+    if (token.type == TOKEN_LEFT_PAREN) {
+        advance(parser);
+
+        AstNode *expr = parse_expression(parser);
+        if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        return expr;
+    }
+
     advance(parser);
 
     if (token.type == TOKEN_INTEGER_LITERAL) {
@@ -571,6 +668,37 @@ static AstNode *parse_primary(Parser *parser) {
         lit->value = atoi(token.lexeme);
         AstNode *node = init_node(lit, AST_LITERAL_INT);
 
+        return node;
+    }
+    else if (token.type == TOKEN_HEX_LITERAL) {
+        AstLiteralInt *lit = malloc(sizeof(AstLiteralInt));
+        lit->value = (int)strtol(token.lexeme, NULL, 16);
+        AstNode *node = init_node(lit, AST_LITERAL_INT);
+
+        return node;
+    }
+    else if (token.type == TOKEN_BINARY_LITERAL) {
+        AstLiteralInt *lit = malloc(sizeof(AstLiteralInt));
+        
+        int value = 0;
+        for (int i = 0; token.lexeme[i] != '\0'; i++) {
+            value <<= 1;
+            if (token.lexeme[i] == '1') {
+                value |= 1;
+            } else if (token.lexeme[i] != '0') {
+                value = 0;
+                break;
+            }
+        }
+    
+        lit->value = value;
+        AstNode *node = init_node(lit, AST_LITERAL_INT);
+        return node;
+    }
+    else if (token.type == TOKEN_OCTAL_LITERAL) {
+        AstLiteralInt *lit = malloc(sizeof(AstLiteralInt));
+        lit->value = (int)strtol(token.lexeme, NULL, 8);
+        AstNode *node = init_node(lit, AST_LITERAL_INT);
         return node;
     }
     else if (token.type == TOKEN_CHAR_LITERAL) {
@@ -603,10 +731,9 @@ static AstNode *parse_primary(Parser *parser) {
 
         return node;
     }
-
-    printf("Bad primary expression");
-
-    return NULL;
+    else {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
 }
 
 static AstBinaryExpr *init_binary_node(AstNode *left, Token op, AstNode *right) {
@@ -635,6 +762,8 @@ static AstNode *parse_unary(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_unary(parser);
+        if (!right) return NULL;
+
         AstUnary *unary = init_unary_node(right, op);
         return init_node(unary, AST_UNARY);
     }
@@ -648,6 +777,8 @@ static AstNode *parse_pointer_operator(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_unary(parser);
+        if (!right) return NULL;
+
         AstUnary *unary = init_unary_node(right, op);
 
         return init_node(unary, AST_UNARY);
@@ -666,6 +797,8 @@ static AstNode *parse_sizeof(Parser *parser) {
         }
 
         AstNode *right = parse_expression(parser);
+        if (!right) return NULL;
+
         AstUnary *unary = init_unary_node(right, op);
 
         if (!expect(TOKEN_RIGHT_PAREN, parser)) {
@@ -686,6 +819,8 @@ static AstNode *parse_factor(Parser *parser) {
         advance(parser);
         
         AstNode *right = parse_sizeof(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -701,6 +836,8 @@ static AstNode *parse_term(Parser *parser) {
         advance(parser);
         
         AstNode *right = parse_factor(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -716,9 +853,10 @@ static AstNode *parse_bitwise_shift(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_term(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
-
-        return init_node(binary, AST_BINARY);
+        left = init_node(binary, AST_BINARY);
     }
 
     return left;
@@ -735,6 +873,8 @@ static AstNode *parse_relational(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_bitwise_shift(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -750,6 +890,8 @@ static AstNode *parse_equality(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_relational(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -765,6 +907,8 @@ static AstNode *parse_bitwise_and(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_equality(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         return init_node(binary, AST_BINARY);
     }
@@ -781,6 +925,8 @@ static AstNode *parse_bitwise_xor(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_bitwise_and(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         return init_node(binary, AST_BINARY);
     }
@@ -796,6 +942,8 @@ static AstNode *parse_bitwise_or(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_bitwise_xor(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         return init_node(binary, AST_BINARY);
     }
@@ -811,6 +959,8 @@ static AstNode *parse_logical_and(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_bitwise_or(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -826,6 +976,8 @@ static AstNode *parse_logical_or(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_logical_and(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -849,12 +1001,14 @@ static AstNode *parse_ternary(Parser *parser) {
         advance(parser);
 
         AstNode *true_expr = parse_expression(parser);
+        if (!true_expr) return NULL;
 
         if (!expect(TOKEN_COLON, parser)) {
             return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
         }
 
         AstNode *false_expr = parse_ternary(parser);
+        if (!false_expr) return NULL;
 
         AstTernary *ternary = init_ternary_node(left, true_expr, false_expr);
         return init_node(ternary, AST_TERNARY);
@@ -871,6 +1025,8 @@ static AstNode *parse_compound(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_compound(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         return init_node(binary, AST_BINARY);
     }
@@ -886,8 +1042,8 @@ static AstNode *parse_compound(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_compound(parser);
-        TokenType op;
-
+        if (!right) return NULL;
+        
         TokenType binary_type;
         switch (compound_op.type) {
             case TOKEN_PLUS_EQUALS: binary_type = TOKEN_PLUS; break;
@@ -929,6 +1085,8 @@ static AstNode *parse_comma(Parser *parser) {
         advance(parser);
 
         AstNode *right = parse_compound(parser);
+        if (!right) return NULL;
+        
         AstBinaryExpr *binary = init_binary_node(left, op, right);
         left = init_node(binary, AST_BINARY);
     }
@@ -959,7 +1117,7 @@ static AstDataType token_to_ast_data_type(Token token) {
     }
 }
 
-static AstNode *parse_qualifiers(Parser *parser) {
+static int parse_qualifiers(Parser *parser) {
     int qualifiers = 0;
     int consumed;
 
@@ -1054,7 +1212,7 @@ static AstNode *parse_var_dec(Parser *parser) {
     return node;
 }
 
-static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count, char *identifier, AstDataType returnType, AstFunctionParameter **params, int params_count) {
+static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count, char *identifier, AstDataType returnType, AstFunctionParameter **params, int params_count, int is_void_params) {
     AstFunctionDeclaration *func = (AstFunctionDeclaration *)malloc(sizeof(AstFunctionDeclaration));
     func->body = body;
     func->body_count = body_count;
@@ -1062,6 +1220,7 @@ static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count
     func->returnType = returnType;
     func->params = params;
     func->params_count = params_count;
+    func->is_void_params = is_void_params;
 
     return func;
 }
@@ -1100,44 +1259,50 @@ static AstNode *parse_function(Parser *parser) {
 
     AstFunctionParameter **params = malloc(sizeof(AstFunctionParameter *));
     if (!params) {
-        return NULL;
+        return parser_err(PARSE_ERR_OUT_OF_MEMORY, parser);
     }
 
     int capacity = 1;
     int params_count = 0;
+    int is_void_params = 0;
 
-    recede(parser);
-    do {
+    if (match(TOKEN_VOID, parser)) {
+        is_void_params = 1;
         advance(parser);
+    } else {
+        recede(parser);
 
-        if (match(TOKEN_RIGHT_PAREN, parser)) break;
-
-        int constant = 0;
-        if (match(TOKEN_CONST, parser)) {
+        do {
             advance(parser);
-            constant = 1;
-        }
-
-        Token type = current_token(parser);
-        if (!is_valid_type(type)) {
-        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
-        }
-        advance(parser);
-
-        Token id = current_token(parser);
-        if (!match(TOKEN_IDENTIFIER, parser)) {
-            return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
-        }
-        advance(parser);
-
-        AstFunctionParameter *param = init_func_parameter(id.lexeme, token_to_ast_data_type(type), constant);
-        if (params_count >= capacity) {
-            capacity *= 2;
-            params = realloc(params, sizeof(AstFunctionParameter *) * capacity);
-        }
-        params[params_count++] = param;
-
-    } while (match(TOKEN_COMMA, parser));
+    
+            if (match(TOKEN_RIGHT_PAREN, parser)) break;
+    
+            int constant = 0;
+            if (match(TOKEN_CONST, parser)) {
+                advance(parser);
+                constant = 1;
+            }
+    
+            Token type = current_token(parser);
+            if (!is_valid_type(type)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+            }
+            advance(parser);
+    
+            Token id = current_token(parser);
+            if (!match(TOKEN_IDENTIFIER, parser)) {
+                return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+            }
+            advance(parser);
+    
+            AstFunctionParameter *param = init_func_parameter(id.lexeme, token_to_ast_data_type(type), constant);
+            if (params_count >= capacity) {
+                capacity *= 2;
+                params = realloc(params, sizeof(AstFunctionParameter *) * capacity);
+            }
+            params[params_count++] = param;
+        } while (match(TOKEN_COMMA, parser));
+    }
 
     if (!expect(TOKEN_RIGHT_PAREN, parser)) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
@@ -1146,7 +1311,7 @@ static AstNode *parse_function(Parser *parser) {
     if (match(TOKEN_SEMICOLON, parser)) {
         advance(parser);
 
-        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, type, params, params_count);
+        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, type, params, params_count, is_void_params);
         AstNode *node = init_node(func, AST_FUNCTION);
 
         return node;
@@ -1171,7 +1336,7 @@ static AstNode *parse_function(Parser *parser) {
         body[body_statement_count++] = node;
     }
 
-    AstFunctionDeclaration *func = init_function_node(body, body_statement_count, identifier_token.lexeme, type, params, params_count);
+    AstFunctionDeclaration *func = init_function_node(body, body_statement_count, identifier_token.lexeme, type, params, params_count, is_void_params);
     AstNode *node = init_node(func, AST_FUNCTION);
 
     if (!expect(TOKEN_RIGHT_BRACE, parser)) {
@@ -1526,60 +1691,25 @@ static AstNode *parse_continue(Parser *parser) {
     return node;
 }
 
-static AstFor *init_for(AstNode *initializer, AstNode *condition, AstNode *alteration, AstNode **body, int body_count) {
+static AstFor *init_for(AstNode *initializer, AstNode *condition, AstNode *alteration, AstNode *block) {
     AstFor *for_stmt = malloc(sizeof(AstFor));
     for_stmt->condition = condition;
     for_stmt->initializer = initializer;
     for_stmt->alteration = alteration;
-    for_stmt->body = body;
-    for_stmt->body_count = body_count;
+    for_stmt->block = block;
 
     return for_stmt;
 }
 
-static AstNode *parse_for(Parser *parser) {
-    advance(parser);
+static AstBlock *init_block(AstNode **body, int body_count) {
+    AstBlock *block = malloc(sizeof(AstBlock));
+    block->body = body;
+    block->body_count = body_count;
 
-    if (!expect(TOKEN_LEFT_PAREN, parser)) {
-        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
-    }
+    return block;
+}
 
-    AstNode *initializer;
-    AstNode *condition;
-    AstNode *alteration;
-
-    if (match(TOKEN_SEMICOLON, parser)) {
-        advance(parser);
-    } else {
-        AstNode *expr = parse_statement(parser);
-        if (!expr) return NULL;
-
-        initializer = expr;
-    }
-
-    if (match(TOKEN_SEMICOLON, parser)) {
-        advance(parser);
-    } else {
-        AstNode *expr = parse_expression(parser);
-        if (!expr) return NULL;
-
-        condition = expr;
-    }
-    advance(parser);
-
-    if (match(TOKEN_SEMICOLON, parser)) {
-        advance(parser);
-    } else {
-        AstNode *expr = parse_expression(parser);
-        if (!expr) return NULL;
-
-        alteration = expr;
-    }
-
-    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
-        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
-    }
-
+static AstNode *parse_block(Parser *parser) {
     if (!expect(TOKEN_LEFT_BRACE, parser)) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
@@ -1604,10 +1734,229 @@ static AstNode *parse_for(Parser *parser) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
 
-    AstFor *for_stmt = init_for(initializer, condition, alteration, body, body_count);
+    AstBlock *block = init_block(body, body_count);
+    AstNode *node = init_node(block, AST_BLOCK);
+
+    return node;
+}
+
+static AstNode *parse_for(Parser *parser) {
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *initializer = NULL;
+    AstNode *condition = NULL;
+    AstNode *alteration = NULL;
+
+    if (match(TOKEN_SEMICOLON, parser)) {
+        advance(parser);
+    } else {
+        AstNode *expr = parse_statement(parser);
+        if (!expr) return NULL;
+
+        initializer = expr;
+    }
+
+    if (match(TOKEN_SEMICOLON, parser)) {
+        // do not advance for this semicolon
+    } else {
+        AstNode *expr = parse_expression(parser);
+        if (!expr) return NULL;
+
+        condition = expr;
+    }
+    advance(parser);
+
+    if (!match(TOKEN_RIGHT_PAREN, parser)) {
+        AstNode *expr = parse_expression(parser);
+        if (!expr) return NULL;
+
+        alteration = expr;
+    }
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *block = parse_block(parser);
+    if (!block) return NULL;
+
+    AstFor *for_stmt = init_for(initializer, condition, alteration, block);
     AstNode *node = init_node(for_stmt, AST_FOR);
 
     return node; 
+}
+
+static AstDoWhile *init_do_while(AstNode *condition, AstNode *block) {
+    AstDoWhile *do_while = malloc(sizeof(AstDoWhile));
+    do_while->condition = condition;
+    do_while->block = block->as.block;
+
+    return do_while;
+}
+
+static AstNode *parse_do_while(Parser *parser) {
+    advance(parser);
+
+    AstNode *block = parse_block(parser);
+    if (!block) return NULL;
+
+    if (!expect(TOKEN_WHILE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+    
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *condition = parse_expression(parser);
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstDoWhile *do_while = init_do_while(condition, block);
+    AstNode *node = init_node(do_while, AST_DO_WHILE);
+
+    return node;
+}
+
+static AstStruct *init_struct(char *name, AstNode **fields, int field_count) {
+    AstStruct *a_struct = malloc(sizeof(AstStruct));
+    a_struct->name = strdup(name);
+    a_struct->fields = fields;
+    a_struct->field_count = field_count;
+
+    return a_struct;
+}
+
+static AstNode *parse_struct(Parser *parser) {
+    advance(parser);
+
+    Token struct_name_token = current_token(parser);
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+    }
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    int member_capacity = 1;
+    int member_count = 0;
+    AstNode **members = malloc(sizeof(AstNode *) * member_capacity);
+
+    do {
+        AstNode *member = parse_statement(parser);
+        if (member->type != AST_VARIABLE_DECLARATION) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        if (member_count >= member_capacity) {
+            member_capacity *= 2;
+            members = realloc(members, sizeof(AstNode *) * member_capacity);
+        }
+        members[member_count++] = member;
+
+    } while (!match(TOKEN_RIGHT_BRACE, parser));
+    advance(parser);
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstStruct *a_struct = init_struct(struct_name_token.lexeme, members, member_count);
+    AstNode *node = init_node(a_struct, AST_STRUCT);
+
+    return node;
+}
+
+static AstNode *init_enum(char *name, AstEnumValue **values, int value_count) {
+    AstEnum *an_enum = malloc(sizeof(AstEnum));
+    an_enum->name = strdup(name);
+    an_enum->values = values;
+    an_enum->value_count = value_count;
+
+
+    return an_enum;
+}
+
+static AstNode *parse_enum(Parser *parser) {
+    advance(parser);
+
+    Token enum_name_token = current_token(parser);
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+    }
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    int value_capacity = 1;
+    int value_count = 0;
+    AstEnumValue **values = malloc(sizeof(AstEnumValue) * value_capacity);
+
+    int current_value = 0;
+    while (!match(TOKEN_RIGHT_BRACE, parser)) {
+        if (!match(TOKEN_IDENTIFIER, parser)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+        
+        Token identifier = current_token(parser);
+        advance(parser);
+
+        int has_explicit_value = 0;
+        int enum_value = current_value;
+
+        if (match(TOKEN_SINGLE_EQUALS, parser)) {
+            advance(parser);
+
+            if (!match(TOKEN_INTEGER_LITERAL, parser)) {
+                return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+            }
+
+            enum_value = atoi(current_token(parser).lexeme);
+            has_explicit_value = 1;
+            advance(parser);
+        }
+
+        AstEnumValue *enum_val = malloc(sizeof(AstEnumValue));
+        enum_val->name = strdup(identifier.lexeme);
+        enum_val->explicit_value = has_explicit_value;
+        enum_val->value = enum_value;
+
+        values[value_count++] = enum_val;
+        current_value = enum_value + 1;
+
+        if (match(TOKEN_COMMA, parser)) {
+            advance(parser);
+        } else if (!match(TOKEN_RIGHT_BRACE, parser)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+    }
+
+    if (!expect(TOKEN_RIGHT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstEnum *an_enum = init_enum(enum_name_token.lexeme, values, value_count);
+    AstNode *node = init_node(an_enum, AST_ENUM);
+
+    return node;
 }
 
 static AstNode *parse_statement(Parser *parser) {
@@ -1643,6 +1992,15 @@ static AstNode *parse_statement(Parser *parser) {
     }
     else if (match(TOKEN_FOR, parser)) {
         return parse_for(parser);
+    }
+    else if (match(TOKEN_DO, parser)) {
+        return parse_do_while(parser);
+    }
+    else if (match(TOKEN_STRUCT, parser)) {
+        return parse_struct(parser);
+    }
+    else if (match(TOKEN_ENUM, parser)) {
+        return parse_enum(parser);
     }
     else if (match(TOKEN_IDENTIFIER, parser)) {
         advance(parser);

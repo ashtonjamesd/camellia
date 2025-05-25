@@ -22,6 +22,11 @@ typedef enum {
     AST_UNARY,
     AST_FOR,
     AST_TERNARY,
+    AST_BLOCK,
+    AST_DO_WHILE,
+    AST_STRUCT,
+    AST_ENUM,
+    AST_ENUM_VALUE,
 } AstType;
 
 typedef enum {
@@ -75,12 +80,36 @@ typedef struct {
 } AstFunctionParameter;
 
 typedef struct {
+    char *name;
+    AstNode **fields;
+    int field_count;
+} AstStruct;
+
+typedef struct {
+    char *name;
+    int value;
+    int explicit_value;
+} AstEnumValue;
+
+typedef struct {
+    char *name;
+    AstEnumValue **values;
+    int value_count;
+} AstEnum;
+
+typedef struct {
+    AstNode              **body;
+    int                    body_count;
+} AstBlock;
+
+typedef struct {
     AstDataType            returnType;
     char                  *identifier;
     AstNode              **body;
     int                    body_count;
     int                    params_count;
     AstFunctionParameter **params;
+    int                    is_void_params;
 } AstFunctionDeclaration;
 
 typedef struct {
@@ -95,27 +124,32 @@ typedef struct {
 
 typedef struct {
     char **lines;
-    int line_count;
+    int    line_count;
 } AstInlineAsmBlock;
 
 typedef struct {
-    char *identifier;
+    char    *identifier;
     AstNode *value;
 } AstAssignment;
 
 typedef struct {
     AstNode *condition;
     AstNode **body;
-    int body_count;
+    int       body_count;
     AstNode **else_body;
-    int else_body_count;
+    int       else_body_count;
 } AstIfStatement;
 
 typedef struct {
     AstNode *condition;
     AstNode **body;
-    int body_count;
+    int       body_count;
 } AstWhile;
+
+typedef struct {
+    AstNode *condition;
+    AstBlock *block;
+} AstDoWhile;
 
 typedef struct {
     int dummy;
@@ -134,8 +168,7 @@ typedef struct {
     AstNode *initializer;
     AstNode *condition;
     AstNode *alteration;
-    AstNode **body;
-    int body_count;
+    AstNode *block;
 } AstFor;
 
 typedef struct {
@@ -165,7 +198,12 @@ struct AstNode {
         AstContinue            *cont;
         AstUnary               *unary;
         AstFor                 *for_stmt;
-        AstTernary         *ternary;
+        AstTernary             *ternary;
+        AstBlock               *block;
+        AstDoWhile             *do_while;
+        AstStruct              *a_struct;
+        AstEnum                *an_enum;
+        AstEnumValue           *enum_val;
     } as;
 };
 
@@ -196,7 +234,7 @@ typedef struct {
     //    int x = 1, y;
     //
     // this flag prevents the above being parsed as a binary expression rather than a list of declarators
-    int is_var_dec;
+    int       is_var_dec;
 
     // the token that caused the err, null if none occurred
     Token     errToken;

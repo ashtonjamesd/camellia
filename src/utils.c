@@ -20,6 +20,9 @@ char* ast_type_to_str(AstType type) {
         case AST_UNARY: return "unary";
         case AST_FOR: return "for";
         case AST_TERNARY: return "ternary";
+        case AST_DO_WHILE: return "do while";
+        case AST_BLOCK: return "block";
+        case AST_STRUCT: return "struct";
         default: return "unknown type";
     }
 }

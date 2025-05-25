@@ -37,6 +37,8 @@ char *token_type_to_str(TokenType type) {
         case TOKEN_CASE: return "case";
         case TOKEN_DEFAULT: return "default";
         case TOKEN_VOID: return "void";
+        case TOKEN_VOLATILE: return "volatile";
+        case TOKEN_INLINE: return "inline";
 
         case TOKEN_INCLUDE: return "include";
         case TOKEN_DEFINE: return "define";
