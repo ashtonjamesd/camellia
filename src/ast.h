@@ -30,20 +30,24 @@ typedef enum {
     AST_UNION,
     AST_CAST,
     AST_ARR_SUBSCRIPT,
+    AST_DECLARATOR,
 } AstType;
 
 typedef enum {
     AST_TYPE_CHAR,
     AST_TYPE_INT,
     AST_TYPE_VOID,
+    AST_TYPE_SHORT,
+    AST_TYPE_DOUBLE,
+    AST_TYPE_LONG,
     AST_TYPE_INVALID,
 } AstDataType;
 
-typedef enum {
-    DECL_STATIC   = 1 << 0,
-    DECL_CONST    = 1 << 1,
-    DECL_VOLATILE = 1 << 2,
-} AstDeclQualifierFlags;
+// typedef enum {
+//     DECL_STATIC   = 1 << 0,
+//     DECL_CONST    = 1 << 1,
+//     DECL_VOLATILE = 1 << 2,
+// } AstDeclQualifierFlags;
 
 typedef struct AstNode AstNode;
 
@@ -57,6 +61,8 @@ typedef struct {
 
 typedef struct {
     char       *identifier;
+    
+    // meant to be NULL at times
     AstNode    *value;
     int         pointer_level;
 } AstDeclarator;
@@ -67,6 +73,17 @@ typedef struct {
     int             declarator_count;
     int             qualifiers; // bitmask for decl_flags
 } AstVariableDeclaration;
+
+typedef struct {
+    int is_const;
+    int is_volatile;
+    int is_static;
+    int is_unsigned;
+    int is_signed;
+    int long_count;
+    int is_short;
+    TokenType type;
+} TypeSpecifier;
 
 typedef struct {
     AstNode *value;
@@ -120,6 +137,7 @@ typedef struct {
 typedef struct {
     AstDataType            returnType;
     char                  *identifier;
+    AstDeclarator         *declarator;
     AstNode              **body;
     int                    body_count;
     int                    params_count;
@@ -228,6 +246,7 @@ struct AstNode {
         AstUnion               *a_union;
         AstCast                *cast;
         AstArraySubscript      *arr_sub;
+        AstDeclarator          *declarator;
     } as;
 };
 

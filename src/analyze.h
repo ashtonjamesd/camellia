@@ -5,6 +5,7 @@
 #include "symtab.h"
 
 typedef enum {
+    ANALYZE_ERR_REDEFINED_VARIABLE,
     ANALYZE_ERR_UNDEFINED_IDENTIFIER,
     NO_ANALYZE_ERR,
 } AnalyzerErr;

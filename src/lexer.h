@@ -28,8 +28,8 @@ typedef struct {
     LexErr err;
 } Lexer;
 
-extern Lexer *init_lexer(char *source, int debug);
-extern void tokenize(Lexer *lexer);
-extern void free_lexer(Lexer *lexer);
+Lexer *init_lexer(char *source, int debug);
+void tokenize(Lexer *lexer);
+void free_lexer(Lexer *lexer);
 
 #endif

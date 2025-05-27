@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Wswitch
 EXEC = build/camc
 
-OBJS = src/main.c src/token.c src/lexer.c src/ast.c src/compile.c src/analyze.c src/symtab.c src/utils.c src/ppd.c src/camc.c
+OBJS = src/main.c src/token.c src/lexer.c src/ast.c src/x86.c src/analyze.c src/symtab.c src/utils.c src/ppd.c src/camc.c
 
 all:
 	$(CC) $(CFLAGS) -o $(EXEC) $(OBJS)

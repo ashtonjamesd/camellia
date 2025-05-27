@@ -16,6 +16,7 @@ static SymbolToken KEYWORDS[] = {
     {"long", TOKEN_LONG},
     {"short", TOKEN_SHORT},
     {"unsigned", TOKEN_UNSIGNED},
+    {"signed", TOKEN_SIGNED},
     {"auto", TOKEN_AUTO},
     {"register", TOKEN_REGISTER},
     {"typedef", TOKEN_TYPEDEF},

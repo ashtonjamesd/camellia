@@ -13,6 +13,7 @@ typedef enum {
     TOKEN_LONG,
     TOKEN_SHORT,
     TOKEN_UNSIGNED,
+    TOKEN_SIGNED,
     TOKEN_AUTO,
     TOKEN_CONST,
     TOKEN_VOLATILE,

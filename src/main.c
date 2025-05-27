@@ -4,7 +4,7 @@
 
 #include "lexer.h"
 #include "ast.h"
-#include "compile.h"
+#include "x86.h"
 #include "analyze.h"
 #include "ppd.h"
 #include "version.h"
@@ -145,8 +145,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
-  // analyze_ast(analyzer);
+  Analyzer *analyzer = init_analyzer(parser->tree, parser->node_count);
+  analyze_ast(analyzer);
 
   // Compiler *compiler = init_compiler(parser->tree, parser->node_count, exe_path, emitAsm, emitObj);
   // compile(compiler);
