@@ -40,6 +40,7 @@ typedef enum {
     AST_TYPE_SHORT,
     AST_TYPE_DOUBLE,
     AST_TYPE_LONG,
+    AST_TYPE_FLOAT,
     AST_TYPE_INVALID,
 } AstDataType;
 
@@ -52,6 +53,18 @@ typedef enum {
 typedef struct AstNode AstNode;
 
 typedef struct {
+    int is_const;
+    int is_volatile;
+    int is_static;
+    int is_unsigned;
+    int is_signed;
+    int long_count;
+    int is_short;
+    int pointer_level;
+    TokenType type;
+} TypeSpecifier;
+
+typedef struct {
     int   value;
 } AstLiteralInt;
 
@@ -61,29 +74,15 @@ typedef struct {
 
 typedef struct {
     char       *identifier;
-    
-    // meant to be NULL at times
     AstNode    *value;
     int         pointer_level;
 } AstDeclarator;
 
 typedef struct {
-    AstDataType     type;
     AstDeclarator **declarators;
     int             declarator_count;
-    int             qualifiers; // bitmask for decl_flags
+    TypeSpecifier   type_specifier;
 } AstVariableDeclaration;
-
-typedef struct {
-    int is_const;
-    int is_volatile;
-    int is_static;
-    int is_unsigned;
-    int is_signed;
-    int long_count;
-    int is_short;
-    TokenType type;
-} TypeSpecifier;
 
 typedef struct {
     AstNode *value;
@@ -100,9 +99,10 @@ typedef struct {
 } AstCast;
 
 typedef struct {
-    char       *name;
-    AstDataType type;
-    int         constant;
+    char         *name;
+    // AstDataType   type;
+    // int           constant;
+    TypeSpecifier type_specifier;
 } AstFunctionParameter;
 
 typedef struct {
@@ -143,6 +143,7 @@ typedef struct {
     int                    params_count;
     AstFunctionParameter **params;
     int                    is_void_params;
+    TypeSpecifier          type_specifier;
 } AstFunctionDeclaration;
 
 typedef struct {

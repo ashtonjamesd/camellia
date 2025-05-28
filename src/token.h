@@ -104,6 +104,7 @@ typedef enum {
     TOKEN_BITWISE_NOT,
 
     TOKEN_EOF,
+    TOKEN_NONE,
 } TokenType;
 
 

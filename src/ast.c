@@ -35,6 +35,21 @@ static void print_depth(int depth) {
     }
 }
 
+static void print_type_specifiers(TypeSpecifier type_specifier, int depth) {
+    if (type_specifier.is_static) printf(" static ");
+    if (type_specifier.is_volatile) printf(" volatile ");
+    if (type_specifier.is_const) printf(" const ");
+    if (type_specifier.is_short) printf(" short ");
+    if (type_specifier.is_signed) printf(" signed ");
+    if (type_specifier.is_unsigned) printf(" unsigned ");
+    for (int i = 0; i < type_specifier.long_count; i++) printf(" long ");
+    for (int i = 0; i < type_specifier.pointer_level; i++) printf("*");
+    printf("\n");
+    print_depth(depth);
+    printf("TYPE: ");
+    printf("%s\n", token_type_to_str(type_specifier.type));
+}
+
 static void print_node(AstNode *node, int depth) {
     print_depth(depth);
 
@@ -52,15 +67,10 @@ static void print_node(AstNode *node, int depth) {
         case AST_VARIABLE_DECLARATION:
             printf("VARIABLE DECLARATION:\n");
             print_depth(depth + factor);
-            printf("TYPE: %s\n", data_type_to_str(node->as.var_dec->type));
-            print_depth(depth + factor);
             printf("DECLARATORS (%d):\n", node->as.var_dec->declarator_count);
             print_depth(depth + factor);
-            printf("QUALIFIERS:");
-            // if (node->as.var_dec->qualifiers & DECL_STATIC)   printf(" static");
-            // if (node->as.var_dec->qualifiers & DECL_CONST)    printf(" const");
-            // if (node->as.var_dec->qualifiers & DECL_VOLATILE) printf(" volatile");
-            printf("\n");
+            printf("TYPE SPECIFIERS:");
+            print_type_specifiers(node->as.var_dec->type_specifier, depth + factor);
 
             for (int i = 0; i < node->as.var_dec->declarator_count; i++) {
                 print_depth(depth + factor * 2);
@@ -90,7 +100,8 @@ static void print_node(AstNode *node, int depth) {
             print_depth(depth + factor);
             printf("IDENTIFIER: %s\n", node->as.func->identifier);
             print_depth(depth + factor);
-            printf("RETURN TYPE: %s\n", data_type_to_str(node->as.func->returnType));
+            printf("TYPE SPECIFIERS:");
+            print_type_specifiers(node->as.func->type_specifier, depth + factor);
             print_depth(depth + factor);
             printf("IS VOID PARAMS: %d\n", node->as.func->is_void_params);
             print_depth(depth + factor);
@@ -99,9 +110,8 @@ static void print_node(AstNode *node, int depth) {
                 print_depth(depth + factor * 2);
                 printf("ID: %s\n", node->as.func->params[i]->name);
                 print_depth(depth + factor * 2);
-                printf("TYPE: %s\n", data_type_to_str(node->as.func->params[i]->type));
-                print_depth(depth + factor * 2);
-                printf("CONST: %d\n", node->as.func->params[i]->constant);
+                printf("TYPE SPECIFIER: ");
+                print_type_specifiers(node->as.func->params[i]->type_specifier, depth + factor);
             }
 
             print_depth(depth + factor);
@@ -367,14 +377,22 @@ static void free_node(AstNode *node) {
     }
     else if (node->type == AST_FUNCTION) {
         for (int i = 0; i < node->as.func->body_count; i++) {
+            printf("TYPE: %d\n", node->as.func->body[i]->type);
             free_node(node->as.func->body[i]);
+            printf("test");
         }
         for (int i = 0; i < node->as.func->params_count; i++) {
-            free_node(node->as.func->params[i]);
+            // free(node->as.func->params[i]);
+            free(node->as.func->params[i]->name);
         }
         free(node->as.func->identifier);
         free(node->as.func->body);
         free(node->as.func);
+        free(node);
+    }
+    else if (node->type == AST_FUNCTION_PARAMETER) {
+        free(node->as.param->name);
+        free(node->as.param);
         free(node);
     }
     else if (node->type == AST_RETURN) {
@@ -502,7 +520,7 @@ static void free_node(AstNode *node) {
         free(node);
     }
     else {
-        printf("unknown ast_type in 'free_node': '%s'\n", ast_type_to_str(node->type));
+        printf("unknown ast_type in 'free_node': '%s' (%d)\n", ast_type_to_str(node->type), node->type);
         printf("you probably forgot to add this type to the if-else block.\n");
     }
 }
@@ -613,6 +631,7 @@ static AstDataType token_to_ast_data_type(Token token) {
         case TOKEN_SHORT: return AST_TYPE_SHORT;
         case TOKEN_DOUBLE: return AST_TYPE_DOUBLE;
         case TOKEN_LONG: return AST_TYPE_LONG;
+        case TOKEN_FLOAT: return AST_TYPE_FLOAT;
 
         // defaults to int
         case TOKEN_UNSIGNED: return AST_TYPE_INT;
@@ -1268,17 +1287,15 @@ static AstNode *parse_expression(Parser *parser) {
     return parse_comma(parser);
 }
 
-static AstVariableDeclaration *init_var_dec(AstDataType type, AstDeclarator **declarators, int declarator_count) {
+static AstVariableDeclaration *init_var_dec(AstDeclarator **declarators, int declarator_count) {
     AstVariableDeclaration *var_dec = (AstVariableDeclaration *)malloc(sizeof(AstVariableDeclaration));
     var_dec->declarators= declarators;
-    var_dec->type = type;
     var_dec->declarator_count = declarator_count;
-    // var_dec->qualifiers = qualifiers;
 
     return var_dec;
 }
 
-static AstNode *parse_variable_declaration(Parser *parser) {
+static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_specs) {
     parser->is_var_dec = 1;
 
     Token type_token = current_token(parser);
@@ -1319,7 +1336,6 @@ static AstNode *parse_variable_declaration(Parser *parser) {
 
         AstDeclarator *declarator = malloc(sizeof(AstDeclarator));
         declarator->identifier = strdup(id.lexeme);
-        declarator->value = initializer;
         declarator->pointer_level = pointer_level;
 
         if (declarator_count >= declarator_capacity) {
@@ -1336,7 +1352,9 @@ static AstNode *parse_variable_declaration(Parser *parser) {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
 
-    AstVariableDeclaration *var_dec = init_var_dec(type, declarators, declarator_count);
+    AstVariableDeclaration *var_dec = init_var_dec(declarators, declarator_count);
+    var_dec->type_specifier = type_specs;
+
     AstNode *node = init_node(var_dec, AST_VARIABLE_DECLARATION);
 
     parser->is_var_dec = 0;
@@ -1356,16 +1374,105 @@ static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count
     return func;
 }
 
-static AstFunctionParameter *init_func_parameter(char *id, AstDataType type, int constant) {
+static TypeSpecifier init_type_specifier() {
+    TypeSpecifier specs;
+    specs.is_const = 0;
+    specs.is_short = 0;
+    specs.is_signed = 0;
+    specs.is_static = 0;
+    specs.is_unsigned = 0;
+    specs.is_volatile = 0;
+    specs.long_count = 0;
+
+    return specs;
+}
+
+static TypeSpecifier parse_type_specifiers(Parser *parser) {
+    TypeSpecifier specs = init_type_specifier();
+    specs.pointer_level = 0;
+
+    int has_type_specified = 0;
+    
+    while (1) {
+        if (match(TOKEN_CONST, parser)) {
+            specs.is_const = 1;
+            advance(parser);
+        }
+        else if (match(TOKEN_STATIC, parser)) {
+            specs.is_static = 1;
+            advance(parser);
+        }
+        else if (match(TOKEN_VOLATILE, parser)) {
+            specs.is_volatile = 1;
+            advance(parser);
+        }
+        else if (match(TOKEN_UNSIGNED, parser)) {
+            specs.is_unsigned = 1;
+            advance(parser);
+        }
+        else if (match(TOKEN_SIGNED, parser)) {
+            specs.is_signed = 1;
+            advance(parser);
+        }
+        else if (match(TOKEN_LONG, parser)) {
+            specs.long_count++;
+            advance(parser);
+        }
+        else if (match(TOKEN_SHORT, parser)) {
+            specs.is_short = 1;
+            advance(parser);
+        }
+        else if (
+            match(TOKEN_INT, parser) || match(TOKEN_CHAR, parser) ||
+            match(TOKEN_FLOAT, parser) || match(TOKEN_DOUBLE, parser) ||
+            match(TOKEN_VOID, parser)
+         ) {
+            specs.type = current_token(parser).type;
+            has_type_specified = 1;
+            advance(parser);
+        }
+        else if (match(TOKEN_STAR, parser)) {
+            specs.pointer_level += 1;
+            advance(parser);
+        }
+        else {
+            break;
+        }
+    }
+
+    // if no non-combinable type has been declared, such with:
+    //   short x;
+    //   long long x;
+    //
+    //  specs.type will hold garbage, so it is assigned here:
+    if (specs.type != TOKEN_CHAR) {
+        if (specs.is_signed) {
+            specs.type = TOKEN_INT;
+        }
+        if (specs.is_unsigned) {
+            specs.type = TOKEN_INT;
+        }
+        if (specs.is_short) {
+            specs.type = TOKEN_SHORT;
+        } 
+        if (specs.long_count != 0 && specs.type != TOKEN_DOUBLE) {
+            specs.type = TOKEN_LONG;
+        }
+    }
+
+    
+    return specs;
+}
+
+static AstFunctionParameter *init_func_parameter(char *id, TypeSpecifier type_specs) {
     AstFunctionParameter *param = malloc(sizeof(AstFunctionParameter));
     param->name = strdup(id);
-    param->type = type;
-    param->constant = constant;
+    param->type_specifier = type_specs;
 
     return param;
 }
 
-static AstNode *parse_function(Parser *parser, AstDeclarator *declarator) {
+static AstNode *parse_function(Parser *parser, TypeSpecifier type_specs) {
     Token return_type_token = current_token(parser);
     AstDataType type = token_to_ast_data_type(return_type_token);
     if (type == AST_TYPE_INVALID) {
@@ -1401,20 +1508,9 @@ static AstNode *parse_function(Parser *parser, AstDeclarator *declarator) {
 
         do {
             advance(parser);
-    
             if (match(TOKEN_RIGHT_PAREN, parser)) break;
     
-            int constant = 0;
-            if (match(TOKEN_CONST, parser)) {
-                advance(parser);
-                constant = 1;
-            }
-    
-            Token type = current_token(parser);
-            if (!is_valid_type(type)) {
-            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
-            }
-            advance(parser);
+            TypeSpecifier type_specs = parse_type_specifiers(parser);
     
             Token id = current_token(parser);
             if (!match(TOKEN_IDENTIFIER, parser)) {
@@ -1422,7 +1518,7 @@ static AstNode *parse_function(Parser *parser, AstDeclarator *declarator) {
             }
             advance(parser);
     
-            AstFunctionParameter *param = init_func_parameter(id.lexeme, token_to_ast_data_type(type), constant);
+            AstFunctionParameter *param = init_func_parameter(id.lexeme, type_specs);
             if (params_count >= capacity) {
                 capacity *= 2;
                 params = realloc(params, sizeof(AstFunctionParameter *) * capacity);
@@ -1463,7 +1559,12 @@ static AstNode *parse_function(Parser *parser, AstDeclarator *declarator) {
         body[body_statement_count++] = node;
     }
 
-    AstFunctionDeclaration *func = init_function_node(body, body_statement_count, identifier_token.lexeme, type, params, params_count, is_void_params);
+    AstFunctionDeclaration *func = init_function_node(
+        body, body_statement_count, identifier_token.lexeme, 
+        type, params, params_count, is_void_params
+    );
+    func->type_specifier = type_specs;
+
     AstNode *node = init_node(func, AST_FUNCTION);
 
     if (!expect(TOKEN_RIGHT_BRACE, parser)) {
@@ -1562,67 +1663,6 @@ static AstNode *parse_inline_asm(Parser *parser) {
     return node;
 }
 
-static TypeSpecifier init_type_specifier() {
-    TypeSpecifier specs;
-    specs.is_const = 0;
-    specs.is_short = 0;
-    specs.is_signed = 0;
-    specs.is_static = 0;
-    specs.is_unsigned = 0;
-    specs.is_volatile = 0;
-    specs.long_count = 0;
-
-    return specs;
-}
-
-static TypeSpecifier parse_type_specifiers(Parser *parser) {
-    TypeSpecifier specs = init_type_specifier();
-
-    while (1) {
-        if (match(TOKEN_CONST, parser)) {
-            specs.is_const = 1;
-            advance(parser);
-        }
-        else if (match(TOKEN_STATIC, parser)) {
-            specs.is_static = 1;
-            advance(parser);
-        }
-        else if (match(TOKEN_VOLATILE, parser)) {
-            specs.is_volatile = 1;
-            advance(parser);
-        }
-        else if (match(TOKEN_UNSIGNED, parser)) {
-            specs.is_unsigned = 1;
-            advance(parser);
-        }
-        else if (match(TOKEN_SIGNED, parser)) {
-            specs.is_signed = 1;
-            advance(parser);
-        }
-        else if (match(TOKEN_LONG, parser)) {
-            specs.long_count++;
-            advance(parser);
-        }
-        else if (match(TOKEN_SHORT, parser)) {
-            specs.is_short = 1;
-            advance(parser);
-        }
-        else if (
-            match(TOKEN_INT, parser) || match(TOKEN_CHAR, parser) ||
-            match(TOKEN_FLOAT, parser) || match(TOKEN_DOUBLE, parser) ||
-            match(TOKEN_VOID, parser)
-        ) {
-            specs.type = current_token(parser).type;
-            advance(parser);
-        }
-        else {
-            break;
-        }
-    }
-
-    return specs;
-}
-
 static AstDeclarator *init_declarator(char *name, int pointer_level) {
     AstDeclarator *declarator = malloc(sizeof(AstDeclarator));
     declarator->identifier = name;
@@ -1651,15 +1691,15 @@ static AstNode *parse_declarator(Parser *parser) {
 }
 
 static AstNode *parse_type_statement(Parser *parser) {
-    TypeSpecifier specs = parse_type_specifiers(parser);
+    TypeSpecifier type_specs = parse_type_specifiers(parser);
 
-    AstDeclarator *declarator = parse_declarator(parser);
-    if (!declarator) return NULL;
+    // advance to the '(' at the start of a function
+    advance(parser);
 
     if (match(TOKEN_LEFT_PAREN, parser)) {
         recede(parser);
         recede(parser);
-        return parse_function(parser, declarator);
+        return parse_function(parser, type_specs);
     }
     else if (
         match(TOKEN_SINGLE_EQUALS, parser) || match(TOKEN_COMMA, parser) || 
@@ -1672,7 +1712,7 @@ static AstNode *parse_type_statement(Parser *parser) {
             return parser_err(PARSE_ERR_VOID_NOT_ALLOWED, parser);
         }
 
-        return parse_variable_declaration(parser);
+        return parse_variable_declaration(parser, type_specs);
     }
     else if (match(TOKEN_SEMICOLON, parser)) {
         recede(parser);
@@ -1682,7 +1722,7 @@ static AstNode *parse_type_statement(Parser *parser) {
             return parser_err(PARSE_ERR_VOID_NOT_ALLOWED, parser);
         }
 
-        return parse_variable_declaration(parser);
+        return parse_variable_declaration(parser, type_specs);
     }
     else {
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
@@ -2060,8 +2100,6 @@ static AstNode *parse_struct_or_union(Parser *parser) {
         is_union = 1;
     }
     advance(parser);
-
-    printf("%s", current_token(parser).lexeme);
 
     Token name_token = current_token(parser);
     if (!match(TOKEN_IDENTIFIER, parser)) {

@@ -23,6 +23,12 @@ char* ast_type_to_str(AstType type) {
         case AST_DO_WHILE: return "do while";
         case AST_BLOCK: return "block";
         case AST_STRUCT: return "struct";
+        case AST_ENUM: return "enum";
+        case AST_ENUM_VALUE: return "enum value";
+        case AST_UNION: return "union";
+        case AST_CAST: return "cast";
+        case AST_ARR_SUBSCRIPT: return "array subscript";
+        case AST_DECLARATOR: return "declarator";
         default: return "unknown type";
     }
 }
