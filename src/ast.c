@@ -377,13 +377,11 @@ static void free_node(AstNode *node) {
     }
     else if (node->type == AST_FUNCTION) {
         for (int i = 0; i < node->as.func->body_count; i++) {
-            printf("TYPE: %d\n", node->as.func->body[i]->type);
             free_node(node->as.func->body[i]);
-            printf("test");
         }
         for (int i = 0; i < node->as.func->params_count; i++) {
-            // free(node->as.func->params[i]);
             free(node->as.func->params[i]->name);
+            free(node->as.func->params[i]);
         }
         free(node->as.func->identifier);
         free(node->as.func->body);
@@ -1297,9 +1295,6 @@ static AstVariableDeclaration *init_var_dec(AstDeclarator **declarators, int dec
 
 static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_specs) {
     parser->is_var_dec = 1;
-
-    Token type_token = current_token(parser);
-    AstDataType type = token_to_ast_data_type(type_token);
     advance(parser);
 
     AstDeclarator **declarators = malloc(sizeof(AstDeclarator));
@@ -1337,6 +1332,7 @@ static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_sp
         AstDeclarator *declarator = malloc(sizeof(AstDeclarator));
         declarator->identifier = strdup(id.lexeme);
         declarator->pointer_level = pointer_level;
+        declarator->value = initializer;
 
         if (declarator_count >= declarator_capacity) {
             declarator_capacity *= 2;
@@ -1391,8 +1387,6 @@ static TypeSpecifier parse_type_specifiers(Parser *parser) {
     TypeSpecifier specs = init_type_specifier();
     specs.pointer_level = 0;
 
-    int has_type_specified = 0;
-    
     while (1) {
         if (match(TOKEN_CONST, parser)) {
             specs.is_const = 1;
@@ -1428,7 +1422,6 @@ static TypeSpecifier parse_type_specifiers(Parser *parser) {
             match(TOKEN_VOID, parser)
          ) {
             specs.type = current_token(parser).type;
-            has_type_specified = 1;
             advance(parser);
         }
         else if (match(TOKEN_STAR, parser)) {
@@ -1663,32 +1656,33 @@ static AstNode *parse_inline_asm(Parser *parser) {
     return node;
 }
 
-static AstDeclarator *init_declarator(char *name, int pointer_level) {
-    AstDeclarator *declarator = malloc(sizeof(AstDeclarator));
-    declarator->identifier = name;
-    declarator->pointer_level = pointer_level;
+// static AstDeclarator *init_declarator(char *name, int pointer_level) {
+//     AstDeclarator *declarator = malloc(sizeof(AstDeclarator));
+//     declarator->identifier = name;
+//     declarator->pointer_level = pointer_level;
 
-    return declarator;
-}
+//     return declarator;
+// }
 
-static AstNode *parse_declarator(Parser *parser) {
-    int pointer_depth = 0;
+// uhhhh
+// static AstNode *parse_declarator(Parser *parser) {
+//     int pointer_depth = 0;
     
-    while (match(TOKEN_STAR, parser)) {
-        advance(parser);
-        pointer_depth++;
-    }
+//     while (match(TOKEN_STAR, parser)) {
+//         advance(parser);
+//         pointer_depth++;
+//     }
 
-    if (!match(TOKEN_IDENTIFIER, parser)) {
-        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
-    }
+//     if (!match(TOKEN_IDENTIFIER, parser)) {
+//         return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+//     }
 
-    Token ident = current_token(parser);
-    advance(parser);
+//     Token ident = current_token(parser);
+//     advance(parser);
 
-    AstNode *node = init_declarator(ident.lexeme, pointer_depth);
-    return node;
-}
+//     AstNode *node = init_declarator(ident.lexeme, pointer_depth);
+//     return node;
+// }
 
 static AstNode *parse_type_statement(Parser *parser) {
     TypeSpecifier type_specs = parse_type_specifiers(parser);
