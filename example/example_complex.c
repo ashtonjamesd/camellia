@@ -14,6 +14,10 @@ enum Color {
     BLUE
 };
 
+typedef unsigned long long int *uint64_ptr;
+
+uint64_ptr x;
+
 int main(void) {
     int x = (int)10;
 }

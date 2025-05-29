@@ -326,6 +326,29 @@ static void print_node(AstNode *node, int depth) {
             print_node(node->as.arr_sub->index, depth + factor * 2);
             break;
 
+        case AST_TYPEDEF:
+            printf("IDENTIFIER: ");
+            printf("%s\n", node->as.type_def->identifier);
+            print_depth(depth + factor);
+            printf("TYPE SPECIFIERS:");
+            print_type_specifiers(node->as.type_def->type_specs, depth + factor);
+            break;
+
+        case AST_ARRAY_DECLARATION:
+            printf("ARRAY DECLARATION: ");
+            printf("%s\n", node->as.array_decl->identifier);
+            print_depth(depth + factor);
+            printf("TYPE SPECIFIERS:");
+            print_type_specifiers(node->as.array_decl->type_specs, depth + factor);
+            print_depth(depth + factor);
+            printf("DIMENSIONS (%d):\n", node->as.array_decl->dimension_count);
+            for (int i = 0; i < node->as.array_decl->dimension_count; i++) {
+                print_depth(depth + factor * 2);
+                printf("DIMENSION (%d):\n", i);
+                print_node(node->as.array_decl->dimensions[i], depth + factor * 3);
+            }
+            break;
+
         default:
             printf("unknown node type: '%s'\n", ast_type_to_str(node->type));
             break;
@@ -517,6 +540,19 @@ static void free_node(AstNode *node) {
         free(node->as.arr_sub);
         free(node);
     }
+    else if (node->type == AST_TYPEDEF) {
+        free(node->as.type_def->identifier);
+        free(node->as.type_def);
+        free(node);
+    }
+    else if (node->type == AST_ARRAY_DECLARATION) {
+        for (int i = 0; i < node->as.array_decl->dimension_count; i++) {
+            free_node(node->as.array_decl->dimensions[i]);
+        }
+        free(node->as.array_decl->identifier);
+        free(node->as.array_decl);
+        free(node);
+    }
     else {
         printf("unknown ast_type in 'free_node': '%s' (%d)\n", ast_type_to_str(node->type), node->type);
         printf("you probably forgot to add this type to the if-else block.\n");
@@ -612,6 +648,12 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_ARR_SUBSCRIPT) {
         node->as.arr_sub = (AstArraySubscript *)value;
+    }
+    else if (type == AST_TYPEDEF) {
+        node->as.type_def = (AstTypedef *)value;
+    }
+    else if (type == AST_ARRAY_DECLARATION) {
+        node->as.array_decl = (AstArrayDeclaration *)value;
     }
     else {
         printf("unknown ast_type in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -1357,12 +1399,11 @@ static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_sp
     return node;
 }
 
-static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count, char *identifier, AstDataType returnType, AstFunctionParameter **params, int params_count, int is_void_params) {
+static AstFunctionDeclaration *init_function_node(AstNode **body, int body_count, char *identifier, AstFunctionParameter **params, int params_count, int is_void_params) {
     AstFunctionDeclaration *func = (AstFunctionDeclaration *)malloc(sizeof(AstFunctionDeclaration));
     func->body = body;
     func->body_count = body_count;
     func->identifier = strdup(identifier);
-    func->returnType = returnType;
     func->params = params;
     func->params_count = params_count;
     func->is_void_params = is_void_params;
@@ -1379,6 +1420,7 @@ static TypeSpecifier init_type_specifier() {
     specs.is_unsigned = 0;
     specs.is_volatile = 0;
     specs.long_count = 0;
+    specs.pointer_level = 0;
 
     return specs;
 }
@@ -1466,12 +1508,6 @@ static AstFunctionParameter *init_func_parameter(char *id, TypeSpecifier type_sp
 }
 
 static AstNode *parse_function(Parser *parser, TypeSpecifier type_specs) {
-    Token return_type_token = current_token(parser);
-    AstDataType type = token_to_ast_data_type(return_type_token);
-    if (type == AST_TYPE_INVALID) {
-        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
-    }
-
     advance(parser);
 
     Token identifier_token = current_token(parser);
@@ -1527,7 +1563,7 @@ static AstNode *parse_function(Parser *parser, TypeSpecifier type_specs) {
     if (match(TOKEN_SEMICOLON, parser)) {
         advance(parser);
 
-        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, type, params, params_count, is_void_params);
+        AstFunctionDeclaration *func = init_function_node(NULL, 0, identifier_token.lexeme, params, params_count, is_void_params);
         AstNode *node = init_node(func, AST_FUNCTION);
 
         return node;
@@ -1554,7 +1590,7 @@ static AstNode *parse_function(Parser *parser, TypeSpecifier type_specs) {
 
     AstFunctionDeclaration *func = init_function_node(
         body, body_statement_count, identifier_token.lexeme, 
-        type, params, params_count, is_void_params
+        params, params_count, is_void_params
     );
     func->type_specifier = type_specs;
 
@@ -1684,6 +1720,57 @@ static AstNode *parse_inline_asm(Parser *parser) {
 //     return node;
 // }
 
+static AstNode * init_array_declaration(char *identifier, TypeSpecifier type_specs, AstNode *dimensions, int dimension_count) {
+    AstArrayDeclaration *arr_decl = malloc(sizeof(AstArrayDeclaration));
+    arr_decl->identifier = strdup(identifier);
+    arr_decl->type_specs = type_specs;
+    arr_decl->dimension_count = dimension_count;
+    arr_decl->dimensions = dimensions;
+
+    return arr_decl;
+}
+
+static AstNode *parse_array_declaration(Parser *parser, TypeSpecifier type_specs) {
+    advance(parser);
+
+    Token array_identifier = current_token(parser);
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+    }
+    advance(parser);
+
+    AstNode **dimensions = malloc(sizeof(AstNode *));
+    int dimension_count = 0;
+    int capacity = 1;
+
+    do {
+        advance(parser);
+        AstNode *dimension = parse_expression(parser);
+        if (!dimension) return NULL;
+
+        if (!expect(TOKEN_SQUARE_BRACKET_RIGHT, parser)) {
+            return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        if (dimension_count >= capacity) {
+            capacity *= 2;
+            dimensions = realloc(dimensions, capacity * sizeof(AstNode *));
+        }
+        dimensions[dimension_count++] = dimension;
+
+    } while (match(TOKEN_SQUARE_BRACKET_LEFT, parser));
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstArrayDeclaration *arr_decl = init_array_declaration(array_identifier.lexeme, type_specs, dimensions, 
+    dimension_count);
+    AstNode *node = init_node(arr_decl, AST_ARRAY_DECLARATION);
+
+    return node;
+}
+
 static AstNode *parse_type_statement(Parser *parser) {
     TypeSpecifier type_specs = parse_type_specifiers(parser);
 
@@ -1694,6 +1781,11 @@ static AstNode *parse_type_statement(Parser *parser) {
         recede(parser);
         recede(parser);
         return parse_function(parser, type_specs);
+    }
+    else if (match(TOKEN_SQUARE_BRACKET_LEFT, parser)) {
+        recede(parser);
+        recede(parser);
+        return parse_array_declaration(parser, type_specs);
     }
     else if (
         match(TOKEN_SINGLE_EQUALS, parser) || match(TOKEN_COMMA, parser) || 
@@ -2219,6 +2311,42 @@ static AstNode *parse_enum(Parser *parser) {
     return node;
 }
 
+static AstTypedef *init_typedef(char *identifier, TypeSpecifier type_specs) {
+    AstTypedef *type_def = malloc(sizeof(AstTypedef));
+    type_def->identifier = strdup(identifier);
+    type_def->type_specs = type_specs;
+
+    return type_def;
+}
+
+static AstNode *parse_typedef(Parser *parser) {
+    advance(parser);
+
+    TypeSpecifier type_specs = parse_type_specifiers(parser);
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
+    }
+    Token identifier = current_token(parser);
+    advance(parser);
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
+    }
+
+    AstTypedef *type_def = init_typedef(identifier.lexeme, type_specs);
+    AstNode *node = init_node(type_def, AST_TYPEDEF);
+
+    return node;
+}
+
+static AstNode *parse_typedef_declaration(Parser *parser) {
+
+    TypeSpecifier type_specs = init_type_specifier();
+    type_specs.type = current_token(parser).type;
+
+    return parse_variable_declaration(parser, type_specs);
+}
+
 static AstNode *parse_statement(Parser *parser) {
     if (is_valid_type(current_token(parser))) {
         return parse_type_statement(parser);
@@ -2265,12 +2393,19 @@ static AstNode *parse_statement(Parser *parser) {
     else if (match(TOKEN_UNION, parser)) {
         return parse_struct_or_union(parser);
     }
+    else if (match(TOKEN_TYPEDEF, parser)) {
+        return parse_typedef(parser);
+    }
     else if (match(TOKEN_IDENTIFIER, parser)) {
         advance(parser);
 
         if (match(TOKEN_SINGLE_EQUALS, parser)) {
             recede(parser);
             return parse_assignment(parser);
+        }
+        else if (match(TOKEN_IDENTIFIER, parser)) {
+            recede(parser);
+            return parse_typedef_declaration(parser);
         }
         else {
             recede(parser);

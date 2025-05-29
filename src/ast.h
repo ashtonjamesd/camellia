@@ -31,6 +31,8 @@ typedef enum {
     AST_CAST,
     AST_ARR_SUBSCRIPT,
     AST_DECLARATOR,
+    AST_TYPEDEF,
+    AST_ARRAY_DECLARATION,
 } AstType;
 
 typedef enum {
@@ -43,12 +45,6 @@ typedef enum {
     AST_TYPE_FLOAT,
     AST_TYPE_INVALID,
 } AstDataType;
-
-// typedef enum {
-//     DECL_STATIC   = 1 << 0,
-//     DECL_CONST    = 1 << 1,
-//     DECL_VOLATILE = 1 << 2,
-// } AstDeclQualifierFlags;
 
 typedef struct AstNode AstNode;
 
@@ -135,7 +131,6 @@ typedef struct {
 } AstBlock;
 
 typedef struct {
-    AstDataType            returnType;
     char                  *identifier;
     AstDeclarator         *declarator;
     AstNode              **body;
@@ -165,6 +160,11 @@ typedef struct {
     char    *identifier;
     AstNode *value;
 } AstAssignment;
+
+typedef struct {
+    TypeSpecifier type_specs;
+    char *identifier;
+} AstTypedef;
 
 typedef struct {
     AstNode *condition;
@@ -217,6 +217,13 @@ typedef struct {
     AstNode *false_expr;
 } AstTernary;
 
+typedef struct {
+    char *identifier;
+    TypeSpecifier type_specs;
+    AstNode **dimensions;
+    int dimension_count;
+} AstArrayDeclaration;
+
 struct AstNode {
     AstType type;
 
@@ -248,6 +255,8 @@ struct AstNode {
         AstCast                *cast;
         AstArraySubscript      *arr_sub;
         AstDeclarator          *declarator;
+        AstTypedef             *type_def;
+        AstArrayDeclaration    *array_decl;
     } as;
 };
 
