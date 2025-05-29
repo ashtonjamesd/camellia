@@ -33,6 +33,7 @@ typedef enum {
     AST_DECLARATOR,
     AST_TYPEDEF,
     AST_ARRAY_DECLARATION,
+    AST_FUNCTION_POINTER_DECLARATION
 } AstType;
 
 typedef enum {
@@ -49,14 +50,14 @@ typedef enum {
 typedef struct AstNode AstNode;
 
 typedef struct {
-    int is_const;
-    int is_volatile;
-    int is_static;
-    int is_unsigned;
-    int is_signed;
-    int long_count;
-    int is_short;
-    int pointer_level;
+    int       is_const;
+    int       is_volatile;
+    int       is_static;
+    int       is_unsigned;
+    int       is_signed;
+    int       long_count;
+    int       is_short;
+    int       pointer_level;
     TokenType type;
 } TypeSpecifier;
 
@@ -96,8 +97,6 @@ typedef struct {
 
 typedef struct {
     char         *name;
-    // AstDataType   type;
-    // int           constant;
     TypeSpecifier type_specifier;
 } AstFunctionParameter;
 
@@ -142,6 +141,13 @@ typedef struct {
 } AstFunctionDeclaration;
 
 typedef struct {
+    char          *identifier;
+    TypeSpecifier  return_type_specs;
+    TypeSpecifier *param_type_specs;
+    int            param_count;
+} AstFunctionPointerDeclaration;
+
+typedef struct {
     AstNode *left;
     Token    op;
     AstNode *right;
@@ -163,7 +169,7 @@ typedef struct {
 
 typedef struct {
     TypeSpecifier type_specs;
-    char *identifier;
+    char         *identifier;
 } AstTypedef;
 
 typedef struct {
@@ -175,13 +181,13 @@ typedef struct {
 } AstIfStatement;
 
 typedef struct {
-    AstNode *condition;
+    AstNode  *condition;
     AstNode **body;
     int       body_count;
 } AstWhile;
 
 typedef struct {
-    AstNode *condition;
+    AstNode  *condition;
     AstBlock *block;
 } AstDoWhile;
 
@@ -218,45 +224,46 @@ typedef struct {
 } AstTernary;
 
 typedef struct {
-    char *identifier;
+    char         *identifier;
     TypeSpecifier type_specs;
-    AstNode **dimensions;
-    int dimension_count;
+    AstNode     **dimensions;
+    int           dimension_count;
 } AstArrayDeclaration;
 
 struct AstNode {
     AstType type;
 
     union {
-        AstLiteralInt          *lit_int;
-        AstLiteralChar         *lit_char;
-        AstVariableDeclaration *var_dec;
-        AstFunctionDeclaration *func;
-        AstReturn              *ret;
-        AstIdentifier          *ident;
-        AstBinaryExpr          *binary;
-        AstCallExpr            *call;
-        AstFunctionParameter   *param;
-        AstInlineAsmBlock      *asm_inl;
-        AstAssignment          *assign;
-        AstIfStatement         *if_stmt;
-        AstWhile               *while_stmt;
-        AstBreak               *brk;
-        AstContinue            *cont;
-        AstUnary               *unary;
-        AstFor                 *for_stmt;
-        AstTernary             *ternary;
-        AstBlock               *block;
-        AstDoWhile             *do_while;
-        AstStruct              *a_struct;
-        AstEnum                *an_enum;
-        AstEnumValue           *enum_val;
-        AstUnion               *a_union;
-        AstCast                *cast;
-        AstArraySubscript      *arr_sub;
-        AstDeclarator          *declarator;
-        AstTypedef             *type_def;
-        AstArrayDeclaration    *array_decl;
+        AstLiteralInt                 *lit_int;
+        AstLiteralChar                *lit_char;
+        AstVariableDeclaration        *var_dec;
+        AstFunctionDeclaration        *func;
+        AstReturn                     *ret;
+        AstIdentifier                 *ident;
+        AstBinaryExpr                 *binary;
+        AstCallExpr                   *call;
+        AstFunctionParameter          *param;
+        AstInlineAsmBlock             *asm_inl;
+        AstAssignment                 *assign;
+        AstIfStatement                *if_stmt;
+        AstWhile                      *while_stmt;
+        AstBreak                      *brk;
+        AstContinue                   *cont;
+        AstUnary                      *unary;
+        AstFor                        *for_stmt;
+        AstTernary                    *ternary;
+        AstBlock                      *block;
+        AstDoWhile                    *do_while;
+        AstStruct                     *a_struct;
+        AstEnum                       *an_enum;
+        AstEnumValue                  *enum_val;
+        AstUnion                      *a_union;
+        AstCast                       *cast;
+        AstArraySubscript             *arr_sub;
+        AstDeclarator                 *declarator;
+        AstTypedef                    *type_def;
+        AstArrayDeclaration           *array_decl;
+        AstFunctionPointerDeclaration *fptr;
     } as;
 };
 

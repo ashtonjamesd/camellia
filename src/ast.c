@@ -349,6 +349,19 @@ static void print_node(AstNode *node, int depth) {
             }
             break;
 
+        case AST_FUNCTION_POINTER_DECLARATION:
+            printf("FUNCTION POINTER DECLARATION: ");
+            printf("%s\n", node->as.fptr->identifier);
+            print_depth(depth + factor);
+            printf("RETURN TYPE SPECIFIERS: ");
+            print_type_specifiers(node->as.fptr->return_type_specs, depth + factor);
+            print_depth(depth + factor);
+            printf("PARAM TYPE SPECIFIERS (%d):", node->as.fptr->param_count);
+            for (int i = 0; i < node->as.fptr->param_count; i++) {
+                print_type_specifiers(node->as.fptr->param_type_specs[i], depth + factor * 2);
+            }
+            break;
+
         default:
             printf("unknown node type: '%s'\n", ast_type_to_str(node->type));
             break;
@@ -553,6 +566,14 @@ static void free_node(AstNode *node) {
         free(node->as.array_decl);
         free(node);
     }
+    else if (node->type == AST_FUNCTION_POINTER_DECLARATION) {
+        // for (int i = 0; i < node->as.fptr->param_count; i++) {
+        //     free(node->as.fptr->param_type_specs);
+        // }
+        free(node->as.fptr->identifier);
+        free(node->as.fptr);
+        free(node);
+    }
     else {
         printf("unknown ast_type in 'free_node': '%s' (%d)\n", ast_type_to_str(node->type), node->type);
         printf("you probably forgot to add this type to the if-else block.\n");
@@ -654,6 +675,9 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_ARRAY_DECLARATION) {
         node->as.array_decl = (AstArrayDeclaration *)value;
+    }
+    else if (type == AST_FUNCTION_POINTER_DECLARATION) {
+        node->as.fptr = (AstFunctionPointerDeclaration *)value;
     }
     else {
         printf("unknown ast_type in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -1771,8 +1795,63 @@ static AstNode *parse_array_declaration(Parser *parser, TypeSpecifier type_specs
     return node;
 }
 
+static AstFunctionPointerDeclaration *init_function_pointer(char *identifier, TypeSpecifier return_type_specs, TypeSpecifier *param_type_specs) {
+    AstFunctionPointerDeclaration *fptr = malloc(sizeof(AstFunctionPointerDeclaration));
+    fptr->identifier = strdup(identifier);
+    fptr->param_type_specs = param_type_specs;
+    fptr->return_type_specs = return_type_specs;
+
+    return fptr;
+}
+
+static AstNode *parse_function_pointer_declaration(Parser *parser, TypeSpecifier type_specs) {
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_STAR, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    Token identifier = current_token(parser);
+    if (!match(TOKEN_IDENTIFIER, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+    advance(parser);
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    // types
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (!expect(TOKEN_SEMICOLON, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstFunctionPointerDeclaration *fptr = init_function_pointer(identifier.lexeme, type_specs, NULL);
+    AstNode *node = init_node(fptr, AST_FUNCTION_POINTER_DECLARATION);
+
+    return node;
+}
+
 static AstNode *parse_type_statement(Parser *parser) {
     TypeSpecifier type_specs = parse_type_specifiers(parser);
+
+    if (match(TOKEN_LEFT_PAREN, parser)) {
+        recede(parser);
+        return parse_function_pointer_declaration(parser, type_specs);
+    }
 
     // advance to the '(' at the start of a function
     advance(parser);
@@ -2095,7 +2174,7 @@ static AstNode *parse_for(Parser *parser) {
     }
 
     if (match(TOKEN_SEMICOLON, parser)) {
-        // do not advance for this semicolon
+        // do not advance for this semicolon, there are only two in a for loop construct
     } else {
         AstNode *expr = parse_expression(parser);
         if (!expr) return NULL;

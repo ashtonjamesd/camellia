@@ -1,1 +1,1 @@
-unsigned long long int ***x[1][1];
+unsigned int (*fptr)();

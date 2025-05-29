@@ -26,6 +26,8 @@ int main() {
     foo()[bar()]++;
     int value = arr[x++] + y[--z];
     ((int *)value)[x]--;
+    
+    unsigned long long int ***x[1][1];
 
     return 0;
 }
