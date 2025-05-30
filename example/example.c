@@ -1,1 +1,5 @@
-unsigned int (*fptr)();
+int main() {
+    int x = 10;
+
+    
+}

@@ -95,7 +95,7 @@ static void generate_return(Compiler *c, AstReturn *ret) {
         put(c, "mov rax, %d", ret->value->as.lit_int->value); 
     }
     else if (ret->value->type == AST_CALL_EXPR) {
-        put(c, "call %s", ret->value->as.call->identifier); 
+        put(c, "call %s", ret->value->as.call->identifier); // change to call(x)
     }
     else if (ret->value->type == AST_BINARY) {
         generate_node(c, ret->value);
@@ -114,12 +114,14 @@ static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     int offset = -8;
     for (int i = 0; i < func->body_count; i++) {
         if (func->body[i]->type == AST_VARIABLE_DECLARATION) {
-            // symbol_table_add(c->symbol_table, func->body[i]->as.var_dec->identifier, offset);
-            offset -= 8;
+            for (int j = 0; j < func->body[i]->as.var_dec->declarator_count; j++) {
+                symbol_table_add(c->symbol_table, func->body[i]->as.var_dec->declarators[j]->identifier, offset);
+                offset -= 8;
+            }
         }
     }
-    put(c, "sub rsp, %d", (-offset));
 
+    put(c, "sub rsp, %d", (-offset));
 
     for (int i = 0; i < func->body_count; i++) {
         generate_node(c, func->body[i]);
@@ -181,20 +183,23 @@ static void generate_inline_asm(Compiler *c, AstInlineAsmBlock *asm_inl) {
 }
 
 static void generate_variable_declaration(Compiler *c, AstVariableDeclaration *var_dec) {
-    // int stack_offset = symbol_table_lookup(c->symbol_table, var_dec->identifier);
+    for (int i = 0; i < var_dec->declarator_count; i++) {
+        int stack_offset = symbol_table_lookup(c->symbol_table, var_dec->declarators[i]->identifier);
+        AstDeclarator *decl = var_dec->declarators[i];
 
-    // if (var_dec->value->type == AST_LITERAL_INT) {
-    //     put(c, "mov qword [rbp%d], %d", stack_offset, var_dec->value->as.lit_int->value);
-    // }
-    // else if (var_dec->value->type == AST_IDENTIFIER) {
-    //     int source_offset = symbol_table_lookup(c->symbol_table, var_dec->value->as.ident->name);
-    //     put(c, "mov rax, qword [rbp%d]", source_offset);
-    //     put(c, "mov qword [rbp%d], rax", stack_offset);
-    // }
-    // else if (var_dec->value->type == AST_BINARY) {
-    //     generate_binary_expr(c, var_dec->value->as.binary);
-    //     put(c, "mov qword [rbp%d], rax", stack_offset);
-    // }
+        if (decl->value->type == AST_LITERAL_INT) {
+            put(c, "mov qword [rbp%d], %d", stack_offset, var_dec->declarators[i]->value->as.lit_int->value);
+        }
+        else if (decl->value->type == AST_IDENTIFIER) {
+            int source_offset = symbol_table_lookup(c->symbol_table, decl->value->as.ident->name);
+            put(c, "mov rax, qword [rbp%d]", source_offset);
+            put(c, "mov qword [rbp%d], rax", stack_offset);
+        }
+        else if (decl->value->type == AST_BINARY) {
+            generate_binary_expr(c, decl->value->as.binary);
+            put(c, "mov qword [rbp%d], rax", stack_offset);
+        }
+    }
 }
 
 static void generate_assignment(Compiler *c, AstAssignment *assign) {

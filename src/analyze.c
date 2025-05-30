@@ -32,11 +32,6 @@ void free_analyzer(Analyzer *analyzer) {
     free(analyzer);
 }
 
-static void err_undefined_identifier(char *name, Analyzer *analyzer) {
-    analyzer->err = ANALYZE_ERR_REDEFINED_VARIABLE;
-    printf("undefined identifier '%s'", name);
-}
-
 static void analyze_function(AstFunctionDeclaration *func, Analyzer *analyzer) {
     for (int i = 0; i < func->body_count; i++) {
         analyze_node(func->body[i], analyzer);

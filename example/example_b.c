@@ -21,5 +21,5 @@ int main() {
         x = x + 2;
     }
 
-    return x;
+    return x + y; // 21
 }

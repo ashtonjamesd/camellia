@@ -356,8 +356,10 @@ static void print_node(AstNode *node, int depth) {
             printf("RETURN TYPE SPECIFIERS: ");
             print_type_specifiers(node->as.fptr->return_type_specs, depth + factor);
             print_depth(depth + factor);
-            printf("PARAM TYPE SPECIFIERS (%d):", node->as.fptr->param_count);
+            printf("PARAM TYPE SPECIFIERS (%d):\n", node->as.fptr->param_count);
             for (int i = 0; i < node->as.fptr->param_count; i++) {
+                print_depth(depth + factor * 2);
+                printf("TYPE SPECIFIER: ");
                 print_type_specifiers(node->as.fptr->param_type_specs[i], depth + factor * 2);
             }
             break;
@@ -1744,7 +1746,7 @@ static AstNode *parse_inline_asm(Parser *parser) {
 //     return node;
 // }
 
-static AstNode * init_array_declaration(char *identifier, TypeSpecifier type_specs, AstNode *dimensions, int dimension_count) {
+static AstArrayDeclaration *init_array_declaration(char *identifier, TypeSpecifier type_specs, AstNode **dimensions, int dimension_count) {
     AstArrayDeclaration *arr_decl = malloc(sizeof(AstArrayDeclaration));
     arr_decl->identifier = strdup(identifier);
     arr_decl->type_specs = type_specs;
@@ -1795,10 +1797,11 @@ static AstNode *parse_array_declaration(Parser *parser, TypeSpecifier type_specs
     return node;
 }
 
-static AstFunctionPointerDeclaration *init_function_pointer(char *identifier, TypeSpecifier return_type_specs, TypeSpecifier *param_type_specs) {
+static AstFunctionPointerDeclaration *init_function_pointer(char *identifier, TypeSpecifier return_type_specs, TypeSpecifier *param_type_specs, int param_count) {
     AstFunctionPointerDeclaration *fptr = malloc(sizeof(AstFunctionPointerDeclaration));
     fptr->identifier = strdup(identifier);
     fptr->param_type_specs = param_type_specs;
+    fptr->param_count = param_count;
     fptr->return_type_specs = return_type_specs;
 
     return fptr;
@@ -1829,7 +1832,25 @@ static AstNode *parse_function_pointer_declaration(Parser *parser, TypeSpecifier
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
 
-    // types
+    int capacity = 1;
+    int count = 0;
+    TypeSpecifier *specs = malloc(sizeof(TypeSpecifier) * capacity);
+
+    while (!match(TOKEN_RIGHT_PAREN, parser)) {
+        TypeSpecifier type_specs = parse_type_specifiers(parser);
+
+        if (count >= capacity) {
+            capacity *= 2;
+            specs = realloc(specs, sizeof(TypeSpecifier) * capacity);
+        }
+        specs[count++] = type_specs;
+
+        if (match(TOKEN_COMMA, parser)) {
+            advance(parser);
+        } else {
+            break;
+        }
+    }
 
     if (!expect(TOKEN_RIGHT_PAREN, parser)) {
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
@@ -1839,7 +1860,7 @@ static AstNode *parse_function_pointer_declaration(Parser *parser, TypeSpecifier
         return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
     }
 
-    AstFunctionPointerDeclaration *fptr = init_function_pointer(identifier.lexeme, type_specs, NULL);
+    AstFunctionPointerDeclaration *fptr = init_function_pointer(identifier.lexeme, type_specs, specs, count);
     AstNode *node = init_node(fptr, AST_FUNCTION_POINTER_DECLARATION);
 
     return node;
