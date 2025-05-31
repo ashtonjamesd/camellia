@@ -95,7 +95,7 @@ static void generate_return(Compiler *c, AstReturn *ret) {
         put(c, "mov rax, %d", ret->value->as.lit_int->value); 
     }
     else if (ret->value->type == AST_CALL_EXPR) {
-        put(c, "call %s", ret->value->as.call->identifier); // change to call(x)
+        call(ret->value->as.call->identifier, c);
     }
     else if (ret->value->type == AST_BINARY) {
         generate_node(c, ret->value);

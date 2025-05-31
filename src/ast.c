@@ -168,6 +168,14 @@ static void print_node(AstNode *node, int depth) {
             print_node(node->as.assign->value, depth + factor * 2);
             break;
 
+        case AST_BREAK:
+            printf("BREAK\n");
+            break;
+
+        case AST_CONTINUE:
+            printf("CONTINUE\n");
+            break;
+
         case AST_IF:
             printf("IF STATEMENT:\n");
             print_depth(depth + factor);
@@ -361,6 +369,29 @@ static void print_node(AstNode *node, int depth) {
                 print_depth(depth + factor * 2);
                 printf("TYPE SPECIFIER: ");
                 print_type_specifiers(node->as.fptr->param_type_specs[i], depth + factor * 2);
+            }
+            break;
+
+        case AST_SWITCH:
+            printf("SWITCH (%d): \n", node->as.switch_stmt->case_count);
+            for (int i = 0; i < node->as.switch_stmt->case_count; i++) {
+                print_depth(depth + factor * 2);
+                printf("CASE (%d):\n", i);
+                print_depth(depth + factor * 3);
+                if (node->as.switch_stmt->cases[i]->value) {
+                    printf("EXPRESSION: \n");
+                    print_node(node->as.switch_stmt->cases[i]->value, factor * 6);
+                } else {
+                    printf("DEFAULT: \n");
+                }
+                
+                if (node->as.switch_stmt->cases[i]->block) {
+                    print_depth(depth + factor * 3);
+                    printf("BODY (%d): \n", node->as.switch_stmt->cases[i]->block->body_count);
+                    for (int j = 0; j < node->as.switch_stmt->cases[i]->block->body_count; j++) {
+                        print_node(node->as.switch_stmt->cases[i]->block->body[j], factor * 7);
+                    }
+                }
             }
             break;
 
@@ -576,6 +607,21 @@ static void free_node(AstNode *node) {
         free(node->as.fptr);
         free(node);
     }
+    else if (node->type == AST_SWITCH) {
+        for (int i = 0; i < node->as.switch_stmt->case_count; i++) {
+            AstCase *switch_case = node->as.switch_stmt->cases[i];
+            if (!switch_case->block) continue;
+
+            for (int j = 0; j < switch_case->block->body_count; j++) {
+                free_node(switch_case->block->body[j]);
+            }
+            free_node(switch_case->value);
+            free(switch_case);
+        }
+        free_node(node->as.switch_stmt->expression);
+        free(node->as.switch_stmt);
+        free(node);
+    }
     else {
         printf("unknown ast_type in 'free_node': '%s' (%d)\n", ast_type_to_str(node->type), node->type);
         printf("you probably forgot to add this type to the if-else block.\n");
@@ -680,6 +726,9 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_FUNCTION_POINTER_DECLARATION) {
         node->as.fptr = (AstFunctionPointerDeclaration *)value;
+    }
+    else if (type == AST_SWITCH) {
+        node->as.switch_stmt = (AstSwitch *)value;
     }
     else {
         printf("unknown ast_type in 'init_node': '%s'\n", ast_type_to_str(type));
@@ -2447,6 +2496,150 @@ static AstNode *parse_typedef_declaration(Parser *parser) {
     return parse_variable_declaration(parser, type_specs);
 }
 
+static AstSwitch *init_switch(AstNode *expression, AstCase **cases, int case_count) {
+    AstSwitch *switch_stmt = malloc(sizeof(AstSwitch));
+    switch_stmt->cases = cases;
+    switch_stmt->expression = expression;
+    switch_stmt->case_count = case_count;
+
+    return switch_stmt;
+}
+
+static AstNode *parse_switch(Parser *parser) {
+    advance(parser);
+
+    if (!expect(TOKEN_LEFT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    AstNode *expression = parse_expression(parser);
+    if (!expression) return NULL;
+
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+
+    if (match(TOKEN_SEMICOLON, parser)) {
+        advance(parser);
+
+        AstSwitch *switch_stmt = init_switch(expression, NULL, 0);
+        AstNode *node = init_node(switch_stmt, AST_SWITCH);
+
+        return node;
+    }
+
+    if (!expect(TOKEN_LEFT_BRACE, parser)) {
+        return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+    }
+    
+    if (match(TOKEN_RIGHT_BRACE, parser)) {
+        advance(parser);
+
+        AstSwitch *switch_stmt = init_switch(expression, NULL, 0);
+        AstNode *node = init_node(switch_stmt, AST_SWITCH);
+
+        return node;
+    }
+
+    AstCase **cases = malloc(sizeof(AstCase *));
+    int count = 0;
+    int capacity = 1;
+
+    do {
+        int is_default = 0;
+        if (match(TOKEN_DEFAULT, parser)) {
+            is_default = 1;
+        }
+        advance(parser);
+
+        AstNode *value = NULL;
+        if (!is_default) {
+            value = parse_expression(parser);
+            if (!expect(TOKEN_COLON, parser)) {
+                return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+            }
+        } else {
+            if (!expect(TOKEN_COLON, parser))
+                return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+        }
+
+        if (match(TOKEN_RIGHT_BRACE, parser)) {
+            advance(parser);
+
+            AstCase *switch_case = malloc(sizeof(AstCase));
+            switch_case->value = value;
+            switch_case->block = NULL;
+
+            cases[count++] = switch_case;
+            break;
+        }
+
+        if (match(TOKEN_CASE, parser) || match(TOKEN_DEFAULT, parser)) {
+            AstCase *switch_case = malloc(sizeof(AstCase));
+            switch_case->value = value;
+            switch_case->block = NULL;
+
+            cases[count++] = switch_case;
+            continue;
+        }
+
+        int is_brace_block = 0;
+        if (match(TOKEN_LEFT_BRACE, parser)) {
+            advance(parser);
+            is_brace_block = 1;
+        } 
+
+        AstNode **body = NULL;
+        int body_count = 0;
+        int body_capacity = 0;
+
+        do {
+            AstNode *statement = parse_statement(parser);
+            if (!statement) {
+                return NULL;
+            }
+
+            if (body_count >= body_capacity) {
+                body_capacity = body_capacity ? body_capacity * 2 : 4;
+                body = realloc(body, body_capacity * sizeof(AstNode *));
+            }
+            body[body_count++] = statement;
+            
+        } while (
+            !match(TOKEN_CASE, parser) && 
+            !match(TOKEN_DEFAULT, parser) &&
+            !match(TOKEN_RIGHT_BRACE, parser)
+        );
+
+        AstBlock *block = malloc(sizeof(AstBlock));
+        block->body = body;
+        block->body_count = body_count;
+        
+        AstCase *switch_case = malloc(sizeof(AstCase));
+        switch_case->value = value;
+        switch_case->block = block;
+
+        if (count >= capacity) {
+            capacity = capacity ? capacity * 2 : 4;
+            cases = realloc(cases, capacity * sizeof(AstCase *));
+        }
+        cases[count++] = switch_case;
+
+        if (is_brace_block) {
+            if (!match(TOKEN_RIGHT_BRACE, parser)) {
+                return parser_err(PARSE_ERR_INVALID_SYNTAX, parser);
+            }
+        }
+
+    } while (!match(TOKEN_RIGHT_BRACE, parser));
+    advance(parser);
+
+    AstSwitch *switch_stmt = init_switch(expression, cases, count);
+    AstNode *node = init_node(switch_stmt, AST_SWITCH);
+
+    return node;
+}
+
 static AstNode *parse_statement(Parser *parser) {
     if (is_valid_type(current_token(parser))) {
         return parse_type_statement(parser);
@@ -2495,6 +2688,9 @@ static AstNode *parse_statement(Parser *parser) {
     }
     else if (match(TOKEN_TYPEDEF, parser)) {
         return parse_typedef(parser);
+    }
+    else if (match(TOKEN_SWITCH, parser)) {
+        return parse_switch(parser);
     }
     else if (match(TOKEN_IDENTIFIER, parser)) {
         advance(parser);

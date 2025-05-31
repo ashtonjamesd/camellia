@@ -33,7 +33,8 @@ typedef enum {
     AST_DECLARATOR,
     AST_TYPEDEF,
     AST_ARRAY_DECLARATION,
-    AST_FUNCTION_POINTER_DECLARATION
+    AST_FUNCTION_POINTER_DECLARATION,
+    AST_SWITCH
 } AstType;
 
 typedef enum {
@@ -60,6 +61,11 @@ typedef struct {
     int       pointer_level;
     TokenType type;
 } TypeSpecifier;
+
+typedef struct {
+    AstNode **body;
+    int       body_count;
+} AstBlock;
 
 typedef struct {
     int   value;
@@ -101,6 +107,17 @@ typedef struct {
 } AstFunctionParameter;
 
 typedef struct {
+    AstNode *value;
+    AstBlock *block;
+} AstCase;
+
+typedef struct {
+    AstNode *expression;
+    AstCase **cases;
+    int case_count;
+} AstSwitch;
+
+typedef struct {
     char     *name;
     AstNode **fields;
     int       field_count;
@@ -123,11 +140,6 @@ typedef struct {
     AstEnumValue **values;
     int            value_count;
 } AstEnum;
-
-typedef struct {
-    AstNode **body;
-    int       body_count;
-} AstBlock;
 
 typedef struct {
     char                  *identifier;
@@ -264,6 +276,7 @@ struct AstNode {
         AstTypedef                    *type_def;
         AstArrayDeclaration           *array_decl;
         AstFunctionPointerDeclaration *fptr;
+        AstSwitch                     *switch_stmt;
     } as;
 };
 
