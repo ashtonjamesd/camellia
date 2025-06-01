@@ -7,6 +7,9 @@ int main() {
                     int x = 10;
                     int x = 10;
 
+                    y();
+                    test();
+
                     if (!x) {
                         return 0;
                     }

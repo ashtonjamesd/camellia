@@ -7,6 +7,7 @@ typedef enum {
     AST_VARIABLE_DECLARATION,
     AST_LITERAL_INT,
     AST_LITERAL_CHAR,
+    AST_LITERAL_STRING,
     AST_FUNCTION,
     AST_RETURN,
     AST_IDENTIFIER,
@@ -68,12 +69,16 @@ typedef struct {
 } AstBlock;
 
 typedef struct {
-    int   value;
+    int  value;
 } AstLiteralInt;
 
 typedef struct {
-    char  value;
+    char value;
 } AstLiteralChar;
+
+typedef struct {
+    char *value;
+} AstLiteralString;
 
 typedef struct {
     char       *identifier;
@@ -166,7 +171,9 @@ typedef struct {
 } AstBinaryExpr;
 
 typedef struct {
-    char *identifier;
+    char     *identifier;
+    AstNode **args;
+    int       arg_count;
 } AstCallExpr;
 
 typedef struct {
@@ -248,6 +255,7 @@ struct AstNode {
     union {
         AstLiteralInt                 *lit_int;
         AstLiteralChar                *lit_char;
+        AstLiteralString              *lit_str;
         AstVariableDeclaration        *var_dec;
         AstFunctionDeclaration        *func;
         AstReturn                     *ret;
@@ -307,7 +315,7 @@ typedef struct {
     //    int x = 1, y;
     //
     // this flag prevents the above being parsed as a binary expression rather than a list of declarators
-    int       is_var_dec;
+    int       ignore_comma_op;
 
     // the token that caused the err, null if none occurred
     Token     errToken;

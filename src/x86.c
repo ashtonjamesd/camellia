@@ -66,6 +66,14 @@ static inline void call(char *func, Compiler *c) {
     put(c, "call %s", func);
 }
 
+static void syscall_write(Compiler *c, int fd, const char *label, int len) {
+    put(c, "mov rax, 1");
+    put(c, "mov rdi, %d", fd);
+    put(c, "lea rsi, [%s]", label);
+    put(c, "mov rdx, %d", len);
+    sys_call(c);
+}
+
 static void symbol_table_add(SymbolTable *table, const char *name, int offset) {
     if (table->count >= table->capacity) {
         table->capacity *= 2;
@@ -106,6 +114,18 @@ static void generate_return(Compiler *c, AstReturn *ret) {
     }
 }
 
+static int emit_syscall(AstCallExpr *call, Compiler *c) {
+    if (strcmp(call->identifier, "write") == 0) {
+        AstIdentifier *label = call->args[1]->as.ident;
+        int value = call->args[2]->as.lit_int->value;
+
+        syscall_write(c, 1, label->name, value);
+        return 1;
+    }
+
+    return 0;
+}
+
 static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
     fprintf(c->file, "\n%s:\n", func->identifier);
     put(c, "push rbp");
@@ -138,6 +158,8 @@ static void generate_function(Compiler *c, AstFunctionDeclaration *func) {
 }
 
 static void generate_call_expr(Compiler *c, AstCallExpr *call_expr) {
+    if (emit_syscall(call_expr, c)) return;
+
     call(call_expr->identifier, c);
 }
 
@@ -167,8 +189,26 @@ static void generate_binary_expr(Compiler *c, AstBinaryExpr *binary) {
         put(c, "pop rbx");
         put(c, "imul rax, rbx");
     }
+    else if (binary->op.type == TOKEN_BITWISE_AND) {
+        generate_node(c, binary->left);
+        put(c, "push rax");
+        generate_node(c, binary->right);
+
+        put(c, "pop rbx");
+        put(c, "and rax, rbx");
+    }
+    else if (binary->op.type == TOKEN_EQUALS) {
+        generate_node(c, binary->left);
+        put(c, "push rax");
+        generate_node(c, binary->right);
+
+        put(c, "pop rbx");
+        put(c, "cmp rax, rbx");
+        put(c, "sete al");
+        put(c, "movzx rax, al");
+    }
     else {
-        fprintf(stderr, "Unsupported binary operator.\n");
+        fprintf(stderr, "Unsupported binary operator '%d'\n", binary->op.type);
     }
 }
 
@@ -180,6 +220,12 @@ static void generate_inline_asm(Compiler *c, AstInlineAsmBlock *asm_inl) {
     for (int i = 0; i < asm_inl->line_count; i++) {
         put(c, "%s", asm_inl->lines[i]);
     }
+}
+
+static void emit_string_literal(Compiler *c, const char *value, char *identifier) {
+    putf(c, "section .rodata");
+    put(c, "%s db \"%s\"", identifier, value);
+    putf(c, "section .text");
 }
 
 static void generate_variable_declaration(Compiler *c, AstVariableDeclaration *var_dec) {
@@ -198,6 +244,12 @@ static void generate_variable_declaration(Compiler *c, AstVariableDeclaration *v
         else if (decl->value->type == AST_BINARY) {
             generate_binary_expr(c, decl->value->as.binary);
             put(c, "mov qword [rbp%d], rax", stack_offset);
+        }
+        else if (decl->value->type == AST_LITERAL_STRING) {
+            emit_string_literal(c, decl->value->as.lit_str->value, decl->identifier);
+        }
+        else {
+            printf("Unknown variable declarator type");
         }
     }
 }
@@ -359,6 +411,7 @@ static void generate_node(Compiler *c, AstNode *node) {
 }
 
 static void asm_init(Compiler *c) {
+    putf(c, "section .rodata");
     putf(c, "section .data");
     putf(c, "section .text");
     put(c, "global _start\n");

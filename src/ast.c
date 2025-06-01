@@ -64,6 +64,10 @@ static void print_node(AstNode *node, int depth) {
             printf("LITERAL CHAR: '%c'\n", node->as.lit_char->value);
             break;
 
+        case AST_LITERAL_STRING:
+            printf("LITERAL STRING: '%s'\n", node->as.lit_str->value);
+            break;
+
         case AST_VARIABLE_DECLARATION:
             printf("VARIABLE DECLARATION:\n");
             print_depth(depth + factor);
@@ -157,6 +161,12 @@ static void print_node(AstNode *node, int depth) {
             printf("CALL EXPRESSION:\n");
             print_depth(depth + factor);
             printf("FUNCTION: %s\n", node->as.call->identifier);
+            
+            print_depth(depth + factor);
+            printf("ARGS (%d):\n", node->as.call->arg_count);
+            for (int i = 0; i < node->as.call->arg_count; i++) {
+                print_node(node->as.call->args[i], depth * factor);
+            }
             break;
 
         case AST_ASSIGNMENT:
@@ -435,6 +445,10 @@ static void free_node(AstNode *node) {
         free(node->as.lit_char);
         free(node);
     }
+    else if (node->type == AST_LITERAL_STRING) {
+        free(node->as.lit_str);
+        free(node);
+    }
     else if (node->type == AST_VARIABLE_DECLARATION) {
         for (int i = 0; i < node->as.var_dec->declarator_count; i++) {
             free(node->as.var_dec->declarators[i]->identifier);
@@ -651,6 +665,9 @@ static AstNode *init_node(void *value, AstType type){
     }
     else if (type == AST_LITERAL_CHAR) {
         node->as.lit_char = (AstLiteralChar *)value;
+    }
+    else if (type == AST_LITERAL_STRING) {
+        node->as.lit_str = (AstLiteralString *)value;
     }
     else if (type == AST_VARIABLE_DECLARATION) {
         node->as.var_dec = (AstVariableDeclaration *)value;
@@ -872,13 +889,6 @@ static inline int expect(TokenType type, Parser *parser) {
     return 0;
 }
 
-static AstCallExpr *init_call_expr(char *identifier) {
-    AstCallExpr *expr = malloc(sizeof(AstCallExpr));
-    expr->identifier = strdup(identifier);
-
-    return expr;
-}
-
 static AstBinaryExpr *init_binary_node(AstNode *left, Token op, AstNode *right) {
     AstBinaryExpr *binary = malloc(sizeof(AstBinaryExpr));
     binary->left = left;
@@ -903,6 +913,52 @@ static AstArraySubscript *init_array_subscript(AstNode *base, AstNode* index) {
     arr_sub->index = index;
 
     return arr_sub;
+}
+
+static AstCallExpr *init_call_expr(char *identifier, AstNode **args, int arg_count) {
+    AstCallExpr *expr = malloc(sizeof(AstCallExpr));
+    expr->identifier = strdup(identifier);
+    expr->args = args;
+    expr->arg_count = arg_count;
+
+    return expr;
+}
+
+static AstNode *parse_call_expr(Parser *parser) {
+    Token identifier = current_token(parser);
+    advance(parser);
+
+    AstNode **args = malloc(sizeof(AstNode *));
+    int capacity = 1;
+    int count = 0;
+    
+    parser->ignore_comma_op = 1;
+    do {
+        advance(parser);
+        if (match(TOKEN_RIGHT_PAREN, parser)) break;
+
+        AstNode *expr = parse_expression(parser);
+        if (!expr) return NULL;
+
+        if (count >= capacity) {
+            capacity *= 2;
+            args = realloc(args, sizeof(AstNode *) * capacity);
+        }        
+        args[count++] = expr;
+
+        printf("%s", current_token(parser).lexeme);
+
+    } while(match(TOKEN_COMMA, parser));
+    parser->ignore_comma_op = 0;
+    
+    if (!expect(TOKEN_RIGHT_PAREN, parser)) {
+        return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
+    }
+
+    AstCallExpr *expr = init_call_expr(identifier.lexeme, args, count);
+    AstNode *node = init_node(expr, AST_CALL_EXPR);
+
+    return node;
 }
 
 static AstNode *parse_primary(Parser *parser) {
@@ -967,21 +1023,20 @@ static AstNode *parse_primary(Parser *parser) {
         return node;
 
     }
+    else if (token.type == TOKEN_STRING_LITERAL) {
+        AstLiteralString *lit = malloc(sizeof(AstLiteralString));
+        lit->value = strdup(token.lexeme);
+        AstNode *node = init_node(lit, AST_LITERAL_STRING);
+
+        return node;
+    }
     else if (token.type == TOKEN_IDENTIFIER) {
-        char *name = strdup(token.lexeme);
-
         if (match(TOKEN_LEFT_PAREN, parser)) {
-            advance(parser);
-            
-            if (!expect(TOKEN_RIGHT_PAREN, parser)) {
-                return parser_err(PARSE_ERR_EXPECTED_EXPRESSION, parser);
-            }
-        
-            AstCallExpr *expr = init_call_expr(name);
-            AstNode *node = init_node(expr, AST_CALL_EXPR);
-
-            return node;
+            recede(parser);
+            return parse_call_expr(parser);
         }
+
+        char *name = strdup(token.lexeme);
 
         AstIdentifier *ident = malloc(sizeof(AstIdentifier));
         ident->name = name;
@@ -1382,7 +1437,7 @@ static AstNode *parse_compound(Parser *parser) {
 
 static AstNode *parse_comma(Parser *parser) {
     AstNode *left = parse_compound(parser);
-    if (parser->is_var_dec) return left;
+    if (parser->ignore_comma_op) return left;
 
     while (match(TOKEN_COMMA, parser)) {
         Token op = current_token(parser);
@@ -1411,7 +1466,7 @@ static AstVariableDeclaration *init_var_dec(AstDeclarator **declarators, int dec
 }
 
 static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_specs) {
-    parser->is_var_dec = 1;
+    parser->ignore_comma_op = 1;
     advance(parser);
 
     AstDeclarator **declarators = malloc(sizeof(AstDeclarator));
@@ -1430,7 +1485,7 @@ static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_sp
 
         Token id = current_token(parser);
         if (!expect(TOKEN_IDENTIFIER, parser)) {
-            parser->is_var_dec = 0;
+            parser->ignore_comma_op = 0;
             return parser_err(PARSE_ERR_EXPECTED_IDENTIFIER, parser);
         }
 
@@ -1440,7 +1495,7 @@ static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_sp
 
             AstNode *expr = parse_expression(parser);
             if (!expr) {
-                parser->is_var_dec = 0;
+                parser->ignore_comma_op = 0;
                 return NULL;
             }
             initializer = expr;
@@ -1461,7 +1516,7 @@ static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_sp
     } while (match(TOKEN_COMMA, parser));
 
     if (!expect(TOKEN_SEMICOLON, parser)) {
-        parser->is_var_dec = 0;
+        parser->ignore_comma_op = 0;
         return parser_err(PARSE_ERR_EXPECTED_SEMICOLON, parser);
     }
 
@@ -1470,7 +1525,7 @@ static AstNode *parse_variable_declaration(Parser *parser, TypeSpecifier type_sp
 
     AstNode *node = init_node(var_dec, AST_VARIABLE_DECLARATION);
 
-    parser->is_var_dec = 0;
+    parser->ignore_comma_op = 0;
     return node;
 }
 
